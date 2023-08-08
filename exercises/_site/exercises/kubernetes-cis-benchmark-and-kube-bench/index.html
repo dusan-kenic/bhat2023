@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Exercise: Kubernetes CIS Benchmark and Kube-Bench | Abusing and Protecting Kubernetes, Linux and Containers</title>
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Exercise: Kubernetes CIS Benchmark and Kube-Bench" />
+<meta property="og:locale" content="en_US" />
+<link rel="canonical" href="http://0.0.0.0:10000/exercises/kubernetes-cis-benchmark-and-kube-bench/" />
+<meta property="og:url" content="http://0.0.0.0:10000/exercises/kubernetes-cis-benchmark-and-kube-bench/" />
+<meta property="og:site_name" content="Abusing and Protecting Kubernetes, Linux and Containers" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Exercise: Kubernetes CIS Benchmark and Kube-Bench" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","headline":"Exercise: Kubernetes CIS Benchmark and Kube-Bench","url":"http://0.0.0.0:10000/exercises/kubernetes-cis-benchmark-and-kube-bench/"}</script>
+<!-- End Jekyll SEO tag -->
+<link rel="stylesheet" href="/assets/main.css"><link type="application/atom+xml" rel="alternate" href="http://0.0.0.0:10000/feed.xml" title="Abusing and Protecting Kubernetes, Linux and Containers" /></head>
+<body><header class="site-header">
+
+    <div class="wrapper"><a class="site-title" rel="author" href="/">Abusing and Protecting Kubernetes, Linux and Containers</a>
+
+      <nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon">
+            <svg viewBox="0 0 18 15" width="18px" height="15px">
+              <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"/>
+            </svg>
+          </span>
+        </label>
+        <div class="trigger">
+            <a class="page-link" href="/">Exercises</a>
+            <a class="page-link" href="/about/">About</a>
+            <a class="page-link" href="/help/">Help</a>
+        </div>
+      </nav>
+
+      <!-- This is the section that comes from the default minima theme -->
+      
+    </div>
+  </header>
+<main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post">
+<link rel="stylesheet" href="/assets/css/style.css">
+ <header class="post-header">
+    <h1 class="post-title">Exercise: Kubernetes CIS Benchmark and Kube-Bench</h1>
+  </header>
+
+
+  <div class="post-content">
+    
+
+    <h2 id="steps">Steps</h2>
+<ol>
+<li>
+<p>Start up a fresh <code>lxterminal</code> by clicking the &quot;sparrow&quot; logo in the bottom-left corner of the screen, clicking run, typing <code>lxterminal</code> and hitting enter. Alternatively, use the hot key sequence below:</p>
+<pre><code>&lt;hold down Alt&gt;&lt;hit F2&gt;lxterminal&lt;HIT the enter key&gt;
+</code></pre></li>
+<li>
+<p>SSH into the control plane node on the cluster:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>ssh <span class="nt">-i</span> /sync/bustakube-node-key root@bustakube-controlplane
+</code></pre></div></div>
+</li>
+<li>
+<p>Switch directory to <code>/root</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cd</span> /root
+</code></pre></div></div>
+</li>
+<li>
+<p>Run <code>kube-bench</code>, passing the output into <code>more</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">version</span><span class="o">=</span><span class="s2">"v0.6.17"</span>
+docker run <span class="nt">--pid</span><span class="o">=</span>host <span class="nt">-v</span> /etc:/etc:ro <span class="nt">-v</span> /var:/var:ro <span class="se">\</span>
+<span class="nt">-v</span> <span class="si">$(</span>which kubectl<span class="si">)</span>:/usr/local/mount-from-host/bin/kubectl <span class="se">\</span>
+<span class="nt">-v</span> ~/.kube:/.kube <span class="nt">-e</span> <span class="nv">KUBECONFIG</span><span class="o">=</span>/.kube/config <span class="se">\</span>
+<span class="nt">-t</span> docker.io/aquasec/kube-bench:<span class="nv">$version</span> <span class="se">\</span>
+run | more
+</code></pre></div></div>
+</li>
+<li>
+<p>Notice the structure of the output.  You have a section with <code>[PASS]</code>, <code>[FAIL]</code>, <code>[WARN]</code>, and <code>[INFO]</code> output for each item in the CIS Benchmark. Then you have &quot;remediations&quot; and &quot;summary&quot; sections for different components of the cluster.</p>
+</li>
+<li>
+<p>Run <code>kube-bench</code> again, writing the output to a text file, named <code>benchoutput.txt</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>docker run <span class="nt">--pid</span><span class="o">=</span>host <span class="nt">-v</span> /etc:/etc:ro <span class="nt">-v</span> /var:/var:ro <span class="se">\</span>
+<span class="nt">-v</span> <span class="si">$(</span>which kubectl<span class="si">)</span>:/usr/local/mount-from-host/bin/kubectl <span class="se">\</span>
+<span class="nt">-v</span> ~/.kube:/.kube <span class="nt">-e</span> <span class="nv">KUBECONFIG</span><span class="o">=</span>/.kube/config <span class="se">\</span>
+<span class="nt">-t</span> docker.io/aquasec/kube-bench:latest <span class="se">\</span>
+run <span class="o">&gt;</span>benchoutput.txt
+</code></pre></div></div>
+</li>
+<li>
+<p>Let's take a look at just a specific item, item <code>1.2.20</code>, which discusses whether the API server program has profiling activated. First, we'll look at the <code>[FAIL]</code> line:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">grep</span> <span class="s1">'1.2.20 Ensure'</span> benchoutput.txt
+</code></pre></div></div>
+</li>
+<li>
+<p>Notice that the line explains what test fails, along with an item number. Here's the output of the last command on our test system:</p>
+<pre><code>[FAIL] 1.2.20 Ensure that the --profiling argument is set to false (Automated)
+</code></pre></li>
+<li>
+<p>Next, let's look at the remediation lines that tell us how to pass the check:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">grep</span> <span class="nt">-A</span> 3 <span class="s1">'1.2.20 Edit'</span> benchoutput.txt
+</code></pre></div></div>
+</li>
+<li>
+<p>Notice that the line explains that we need to add one parameter to the <code>kube-apiserver</code> pod's specification/manifest file. Here's the output of the last command on our test system:</p>
+<pre><code>1.2.20 Edit the API server pod specification file /etc/kubernetes/manifests/kube-apiserver.yaml
+on the master node and set the below parameter.
+--profiling=false
+</code></pre></li>
+<li>
+<p>Before we try to correct the issue, let's make sure this isn't a false positive by checking the <code>ps</code> output to make sure that <code>--profiling=false</code> does not appear on the <code>kube-apiserver</code> line. We're using <code>egrep</code> for regular expression-based <code>grep</code> and the <code>-o</code> flag to see only the part of the line that matches the pattern. We should get no output from this command.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>ps <span class="nt">-ef</span> | <span class="nb">grep </span>kube-apiserver | egrep <span class="nt">-o</span> <span class="s1">'profiling[^ ]+'</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Notice that we got no output. This means that the <code>kube-apiserver</code> line in the <code>ps</code> output didn't have a <code>--profiling</code> parameter set. The default behavior for <code>kube-apiserver</code> is to have profiling active unless there's a <code>--profiling=false</code> parameter. Since there isn't one, profiling is active and this is not a false positive.</p>
+</li>
+<li>
+<p>Let's update the <code>kube-apiserver</code> pod manifest file - it can be found in <code>/etc/kubernetes/manifests/kube-apiserver.yaml</code>. Back up the file first:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cp</span> /etc/kubernetes/manifests/kube-apiserver.yaml /root/
+</code></pre></div></div>
+</li>
+<li>
+<p>Let's use <code>yq</code> to add a line to this file. First, take a look at the <code>.spec</code> section of the file's first container:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cat </span>kube-apiserver.yaml | yq <span class="nt">-Y</span> <span class="s1">'.spec.containers[0]'</span> | <span class="nb">head</span> <span class="nt">-32</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>We want to add <code>--profiling=false</code> to the list under <code>command:</code>. Let's see just this list:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cat </span>kube-apiserver.yaml | yq <span class="nt">-Y</span> <span class="s1">'.spec.containers[0].command'</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Let's add a single item to that list in the manifest. The first <code>yq</code> command below will add an item to the list located at <code>.spec.containers[0].command</code>. The second <code>yq</code> command will filter the output, so we see only that list, rather than the entire spec file:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cat </span>kube-apiserver.yaml | <span class="se">\</span>
+yq <span class="s1">'.spec.containers[0].command += ["--profiling=false"]'</span> | <span class="se">\</span>
+yq <span class="nt">-Y</span> <span class="s1">'.spec.containers[0].command'</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Notice that the last line of the output has this on it:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>- <span class="s2">"--profiling=false"</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Now that we've seen what will happen, let's create a new YAML file to replace the old one. We'll put our new YAML file on top of the original at <code>/etc/kubernetes/manifests/kube-apiserver.yaml</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cat </span>kube-apiserver.yaml | <span class="se">\</span>
+yq <span class="nt">-Y</span> <span class="s1">'.spec.containers[0].command += ["--profiling=false"]'</span> <span class="se">\</span>
+<span class="o">&gt;</span>/etc/kubernetes/manifests/kube-apiserver.yaml
+</code></pre></div></div>
+</li>
+<li>
+<p>Now, let's restart the <code>kube-apiserver</code> pod's main container:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">cntr</span><span class="o">=</span><span class="si">$(</span>docker ps | <span class="nb">grep </span>k8s_kube-apiserver | <span class="nb">awk</span> <span class="s1">'{print $1}'</span><span class="si">)</span>
+docker <span class="nb">rm</span> <span class="nt">-f</span> <span class="nv">$cntr</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Make sure the API server has come back up - this command should return <code>1</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>ps <span class="nt">-ef</span> | <span class="nb">grep</span> <span class="nt">-c</span> kube-apiserve[r]
+</code></pre></div></div>
+</li>
+<li>
+<p>Run <code>kube-bench</code> again, writing the output to a different file, named <code>benchoutput-post-profiling-change.txt</code></p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>docker run <span class="nt">--pid</span><span class="o">=</span>host <span class="nt">-v</span> /etc:/etc:ro <span class="nt">-v</span> /var:/var:ro <span class="se">\</span>
+<span class="nt">-v</span> <span class="si">$(</span>which kubectl<span class="si">)</span>:/usr/local/mount-from-host/bin/kubectl <span class="se">\</span>
+<span class="nt">-v</span> ~/.kube:/.kube <span class="nt">-e</span> <span class="nv">KUBECONFIG</span><span class="o">=</span>/.kube/config <span class="se">\</span>
+<span class="nt">-t</span> docker.io/aquasec/kube-bench:latest <span class="se">\</span>
+run <span class="o">&gt;</span>benchoutput-post-profiling-change.txt
+</code></pre></div></div>
+</li>
+<li>
+<p>Look at item <code>1.2.20</code>'s status in the <code>benchoutput-post-profiling-change.txt</code> file:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">grep</span> <span class="s1">'1.2.20 Ensure'</span> benchoutput-post-profiling-change.txt
+</code></pre></div></div>
+</li>
+<li>
+<p>Good - we pass on that item now. Now, run a diff on the output:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>diff benchoutput.txt benchoutput-post-profiling-change.txt
+</code></pre></div></div>
+</li>
+<li>
+<p>Notice that, again, the output shows we're now passing that test and our number of PASS-ing checks increases by one. Here's the output on our test system - do not copy-and-paste this:</p>
+<pre><code>44c44
+&lt; [FAIL] 1.2.20 Ensure that the --profiling argument is set to false (Automated)
+---
+&gt; [PASS] 1.2.20 Ensure that the --profiling argument is set to false (Automated)
+119,122d118
+&lt; 1.2.20 Edit the API server pod specification file /etc/kubernetes/manifests/kube-apiserver.yaml
+&lt; on the master node and set the below parameter.
+&lt; --profiling=false
+&lt;
+176,177c172,173
+&lt; 43 checks PASS
+&lt; 10 checks FAIL
+---
+&gt; 44 checks PASS
+&gt; 9 checks FAIL
+426,427c422,423
+&lt; 68 checks PASS
+&lt; 12 checks FAIL
+---
+&gt; 69 checks PASS
+&gt; 11 checks FAIL
+</code></pre></li>
+<li>
+<p>Take a look at the CIS Benchmark description for this item - you'll find a copy in <code>/sync/CIS/</code></p>
+</li>
+</ol>
+
+  </div>
+
+  <div class="post-exercise">
+    <h2 id="exercise-done">Done With the Exercise</h2>
+
+<p>Please flip your sticker over so we know how many people are done with the exercise.</p>
+</p>
+    
+
+
+    <h2 id="suspend-vms">Virtual Machine Management Tips</h2>
+
+<p> If you want to see what virtual machines are currently running, you can run:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  virsh list  
+</code></pre></div>    </div>
+    
+<p>If you have virtual machines using RAM and CPU, you can suspend all of them with:</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  sudo /sync/bin/suspend-all-vms.sh 
+</code></pre></div>    </div>
+
+    
+
+  </div>
+
+</article>
+<script src="/assets/scripts/clipboard.min.js"></script>
+<script src="/assets/scripts/copy.js"></script>
+
+      </div>
+    </main><footer class="site-footer h-card">
+  <data class="u-url" href="/"></data>
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">Abusing and Protecting Kubernetes, Linux and Containers</h2>
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col footer-col-1">
+        <ul class="contact-list">
+          <li class="p-name">Abusing and Protecting Kubernetes, Linux and Containers</li><li><a class="u-email" href="mailto:contact@inguardians.com">contact@inguardians.com</a></li></ul>
+      </div>
+
+      <div class="footer-col footer-col-2"><ul class="social-media-list"><li><a href="https://github.com/inguardians"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#github"></use></svg> <span class="username">inguardians</span></a></li><li><a href="https://www.twitter.com/inguardians"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#twitter"></use></svg> <span class="username">inguardians</span></a></li></ul>
+</div>
+
+      <div class="footer-col footer-col-3">
+        <p></p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+</body>
+
+</html>

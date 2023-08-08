@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Exercise: Kubernetes OPA - Gatekeeper | Abusing and Protecting Kubernetes, Linux and Containers</title>
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Exercise: Kubernetes OPA - Gatekeeper" />
+<meta property="og:locale" content="en_US" />
+<link rel="canonical" href="http://0.0.0.0:10000/exercises/kubernetes-opa/" />
+<meta property="og:url" content="http://0.0.0.0:10000/exercises/kubernetes-opa/" />
+<meta property="og:site_name" content="Abusing and Protecting Kubernetes, Linux and Containers" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Exercise: Kubernetes OPA - Gatekeeper" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","headline":"Exercise: Kubernetes OPA - Gatekeeper","url":"http://0.0.0.0:10000/exercises/kubernetes-opa/"}</script>
+<!-- End Jekyll SEO tag -->
+<link rel="stylesheet" href="/assets/main.css"><link type="application/atom+xml" rel="alternate" href="http://0.0.0.0:10000/feed.xml" title="Abusing and Protecting Kubernetes, Linux and Containers" /></head>
+<body><header class="site-header">
+
+    <div class="wrapper"><a class="site-title" rel="author" href="/">Abusing and Protecting Kubernetes, Linux and Containers</a>
+
+      <nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon">
+            <svg viewBox="0 0 18 15" width="18px" height="15px">
+              <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"/>
+            </svg>
+          </span>
+        </label>
+        <div class="trigger">
+            <a class="page-link" href="/">Exercises</a>
+            <a class="page-link" href="/about/">About</a>
+            <a class="page-link" href="/help/">Help</a>
+        </div>
+      </nav>
+
+      <!-- This is the section that comes from the default minima theme -->
+      
+    </div>
+  </header>
+<main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post">
+<link rel="stylesheet" href="/assets/css/style.css">
+ <header class="post-header">
+    <h1 class="post-title">Exercise: Kubernetes OPA - Gatekeeper</h1>
+  </header>
+
+
+  <div class="post-content">
+    
+
+    <h2 id="steps">Steps</h2>
+<p>Let's try another defense on the first cluster takeover scenario: &quot;OPA Gatekeeper&quot; in place of the pod security policy admission controller. We can use OPA Gatekeeper to prevent any account from deploying a host volume-mounting pod.</p>
+<ol>
+<li>
+<p>Start up a fresh lxterminal by clicking the &quot;sparrow&quot; logo in the bottom-left corner of the screen, clicking run, typing <code>lxterminal</code> and hitting enter.</p>
+</li>
+<li>
+<p>SSH into the Kubernetes control-plane node:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>ssh <span class="nt">-i</span> /sync/bustakube-node-key root@bustakube-controlplane
+</code></pre></div></div>
+</li>
+<li>
+<p>If the Bustakube cluster isn't in the first scenario, put it into that scenario.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl get pod apache-status <span class="o">&gt;</span>/dev/null 2&gt;/dev/null <span class="o">||</span> <span class="se">\</span>
+  /usr/share/bustakube/Scenario1-OwnTheNodes/stage-scenario-1.sh 
+</code></pre></div></div>
+</li>
+<li>
+<p>Deactivate the Pod Security Policy admission controller:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>/usr/local/bin/toggle-psp-controller.sh deactivate
+</code></pre></div></div>
+</li>
+<li>
+<p>Install gatekeeper, using the GitHub-hosted manifest file:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">url</span><span class="o">=</span><span class="s2">"https://raw.githubusercontent.com/open-policy-agent"</span>
+kubectl apply <span class="nt">-f</span> <span class="k">${</span><span class="nv">url</span><span class="k">}</span>/gatekeeper/release-3.8/deploy/gatekeeper.yaml
+</code></pre></div></div>
+</li>
+<li>
+<p>Confirm that Gatekeeper is running:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl <span class="nb">wait</span> <span class="nt">-n</span> gatekeeper-system deployment <span class="nt">--all</span> <span class="nt">--timeout</span><span class="o">=</span>3m <span class="se">\</span>
+ <span class="nt">--for</span><span class="o">=</span><span class="nv">condition</span><span class="o">=</span>Available gatekeeper-controller-manager
+</code></pre></div></div>
+</li>
+<li>
+<p>Now clone the OPA Gatekeeper Library, to get constraints:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>git clone https://github.com/open-policy-agent/gatekeeper-library.git
+</code></pre></div></div>
+</li>
+<li>
+<p>Change directory into the set of templates corresponding to the pod security policies:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cd </span>gatekeeper-library/library/pod-security-policy
+</code></pre></div></div>
+</li>
+<li>
+<p>Look at the set of OPA Gatekeeper templates that match existing PSP capability:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">ls</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Change directory into the template for host-filesystem use, comparable to the <code>hostPath</code> pod security policy:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cd </span>host-filesystem/
+</code></pre></div></div>
+</li>
+<li>
+<p>Apply the template:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl apply <span class="nt">-f</span> template.yaml
+</code></pre></div></div>
+</li>
+<li>
+<p>Confirm that the template is loaded:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl <span class="nb">wait </span>crd <span class="nt">--all</span> <span class="nt">--for</span><span class="o">=</span><span class="nv">condition</span><span class="o">=</span>Established <span class="se">\</span>
+   k8spsphostfilesystem.constraints.gatekeeper.sh
+</code></pre></div></div>
+</li>
+<li>
+<p>Now apply the pod security policy-equivalent <code>hostPath</code> restriction constraint:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl apply <span class="nt">-f</span> samples/psp-host-filesystem/constraint.yaml
+</code></pre></div></div>
+</li>
+<li>
+<p>Now, let's see that we can't stage a pod that mounts the host filesystem:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">scenario_dir</span><span class="o">=</span><span class="s2">"/usr/share/bustakube/Scenario1-OwnTheNodes"</span>
+kubectl apply <span class="nt">-f</span> <span class="k">${</span><span class="nv">scenario_dir</span><span class="k">}</span>/Attack/attack-pod.yaml
+</code></pre></div></div>
+</li>
+<li>
+<p>Observe the error message that says our attack pod was blocked. This means OPA Gatekeeper has blocked our attack.</p>
+</li>
+</ol>
+
+  </div>
+
+  <div class="post-exercise">
+    <h2 id="exercise-done">Done With the Exercise</h2>
+
+<p>Please flip your sticker over so we know how many people are done with the exercise.</p>
+</p>
+    
+
+
+    <h2 id="suspend-vms">Virtual Machine Management Tips</h2>
+
+<p> If you want to see what virtual machines are currently running, you can run:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  virsh list  
+</code></pre></div>    </div>
+    
+<p>If you have virtual machines using RAM and CPU, you can suspend all of them with:</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  sudo /sync/bin/suspend-all-vms.sh 
+</code></pre></div>    </div>
+
+    
+
+  </div>
+
+</article>
+<script src="/assets/scripts/clipboard.min.js"></script>
+<script src="/assets/scripts/copy.js"></script>
+
+      </div>
+    </main><footer class="site-footer h-card">
+  <data class="u-url" href="/"></data>
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">Abusing and Protecting Kubernetes, Linux and Containers</h2>
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col footer-col-1">
+        <ul class="contact-list">
+          <li class="p-name">Abusing and Protecting Kubernetes, Linux and Containers</li><li><a class="u-email" href="mailto:contact@inguardians.com">contact@inguardians.com</a></li></ul>
+      </div>
+
+      <div class="footer-col footer-col-2"><ul class="social-media-list"><li><a href="https://github.com/inguardians"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#github"></use></svg> <span class="username">inguardians</span></a></li><li><a href="https://www.twitter.com/inguardians"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#twitter"></use></svg> <span class="username">inguardians</span></a></li></ul>
+</div>
+
+      <div class="footer-col footer-col-3">
+        <p></p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+</body>
+
+</html>

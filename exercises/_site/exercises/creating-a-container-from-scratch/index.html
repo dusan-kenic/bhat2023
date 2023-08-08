@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Exercise: Containers from Scratch | Abusing and Protecting Kubernetes, Linux and Containers</title>
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Exercise: Containers from Scratch" />
+<meta property="og:locale" content="en_US" />
+<link rel="canonical" href="http://0.0.0.0:10000/exercises/creating-a-container-from-scratch/" />
+<meta property="og:url" content="http://0.0.0.0:10000/exercises/creating-a-container-from-scratch/" />
+<meta property="og:site_name" content="Abusing and Protecting Kubernetes, Linux and Containers" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Exercise: Containers from Scratch" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","headline":"Exercise: Containers from Scratch","url":"http://0.0.0.0:10000/exercises/creating-a-container-from-scratch/"}</script>
+<!-- End Jekyll SEO tag -->
+<link rel="stylesheet" href="/assets/main.css"><link type="application/atom+xml" rel="alternate" href="http://0.0.0.0:10000/feed.xml" title="Abusing and Protecting Kubernetes, Linux and Containers" /></head>
+<body><header class="site-header">
+
+    <div class="wrapper"><a class="site-title" rel="author" href="/">Abusing and Protecting Kubernetes, Linux and Containers</a>
+
+      <nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon">
+            <svg viewBox="0 0 18 15" width="18px" height="15px">
+              <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"/>
+            </svg>
+          </span>
+        </label>
+        <div class="trigger">
+            <a class="page-link" href="/">Exercises</a>
+            <a class="page-link" href="/about/">About</a>
+            <a class="page-link" href="/help/">Help</a>
+        </div>
+      </nav>
+
+      <!-- This is the section that comes from the default minima theme -->
+      
+    </div>
+  </header>
+<main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post">
+<link rel="stylesheet" href="/assets/css/style.css">
+ <header class="post-header">
+    <h1 class="post-title">Exercise: Containers from Scratch</h1>
+  </header>
+
+
+  <div class="post-content">
+    
+    <h2 id="before-you-start">Before you start</h2>
+
+<p>Please turn your sticker over, back to the not-yet-done side.</p>
+<p>Then start an lxterminal by clicking the "sparrow" logo in the bottom-left corner of the screen, clicking run, typing `lxterminal` and hitting enter. 
+</p>
+    
+<p>Now suspend all other virtual machines:</p>
+
+<div class="language-shell highlighter-rouge"><div 
+class="highlight"><pre class="highlight">
+<code>/sync/bin/suspend-all-vms.sh </code>
+</pre></div>    </div>
+
+<p>And then start the virtual machine:</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code>sudo virsh start docker</code></pre></div>    </div>
+
+    
+
+    <h2 id="steps">Steps</h2>
+<ol>
+<li>
+<p>Start up a fresh <code>lxterminal</code> by clicking the &quot;sparrow&quot; logo in the bottom-left corner of the screen, clicking run, typing <code>lxterminal</code> and hitting enter. Alternatively, use the hot key sequence below:</p>
+<pre><code>&lt;hold down Alt&gt;&lt;hit F2&gt;lxterminal&lt;HIT the enter key&gt;
+</code></pre></li>
+<li>
+<p>Log in to the docker virtual machine with password <code>logidebtech</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>ssh user@docker
+</code></pre></div></div>
+</li>
+<li>
+<p>Sudo to <code>root</code> with the same password <code>logidebtech</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">sudo </span>su -
+</code></pre></div></div>
+</li>
+<li>
+<p>Just to make things easier to see, we're going to create a copy of bash called mysh.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cp</span> /bin/bash /bin/mysh
+</code></pre></div></div>
+</li>
+<li>
+<p>Let's get a list of the non-container-type namespaces on this system, using <code>lsns</code> (list namespaces):</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>lsns | <span class="nb">head</span> <span class="nt">-8</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>With output similar to the below, you should notice that the /sbin/init process has six (6) numbered namespaces, like so:</p>
+<pre><code>NS         TYPE     NPROCS  PID  USER             COMMAND
+4026531834 time      96      1   root             /sbin/init
+4026531835 cgroup    96      1   root             /sbin/init
+4026531836 pid       96      1   root             /sbin/init
+4026531837 user      96      1   root             /sbin/init
+4026531838 uts       96      1   root             /sbin/init
+4026531839 ipc       96      1   root             /sbin/init
+4026531840 mnt       96      1   root             /sbin/init
+</code></pre></li>
+<li>
+<p>Take a look at the <code>pid</code> line - it this sample line, it indicates that 96 processes share the same view of the Process ID tree as /sbin/init does:</p>
+<pre><code>4026531836 pid       96      1   root             /sbin/init
+</code></pre></li>
+<li>
+<p>Let's start a shell that is in the root namespaces, except for the UTS (hostname) namespace.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>unshare <span class="nt">--uts</span> /bin/mysh
+</code></pre></div></div>
+</li>
+<li>
+<p>It looks like nothing has changed, but it has.  Set the hostname for the machine:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">hostname </span>container
+</code></pre></div></div>
+</li>
+<li>
+<p>Ask what the hostname is:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">hostname</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Now start a new terminal tab by hitting Ctrl-Shift-t.</p>
+<pre><code>Hit Ctrl-Shift-t
+</code></pre></li>
+<li>
+<p>Start a second SSH connection to the docker virtual machine, using the password <code>logidebtech</code> when prompted:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>ssh user@docker
+</code></pre></div></div>
+</li>
+<li>
+<p>In this connection, check the system's hostname. Is it &quot;container?&quot;</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">hostname</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Notice that the hostname on the system at large is still &quot;docker.&quot;  Switch back to your original tab.</p>
+<pre><code>Switch back to the previous terminal window/tab
+</code></pre></li>
+<li>
+<p>So in this shell, we're in a different UTS (hostname) namespace from <code>init</code> and so many other processes. In this UTS namespace, the hostname is &quot;container!&quot; Check to see if the filesystem looks like a container by looking at the hostname file:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cat</span> /etc/hostname
+</code></pre></div></div>
+</li>
+<li>
+<p>No, it doesn't - this shell has the same filesystem as the main system.  Now, let's look at the namespace number for the one new namespace that we've created here, using lsns.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>lsns | <span class="nb">grep </span>mysh
+</code></pre></div></div>
+</li>
+<li>
+<p>Notice that the namespace number (in the first column) isn't the same as the one that /sbin/init was in. Also, notice that the second column says this namespace is a UTS (hostname) namespace. On a sample system, our output was:</p>
+<pre><code>4026532550 uts         3 923316 root             mysh
+</code></pre></li>
+<li>
+<p>Now exit the mysh shell, so we can see how things are in the original UTS namespace:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">exit</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Run <code>hostname</code> to see the system hostname:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">hostname</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>See if there's still a separate namespace for the mysh program:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>lsns | <span class="nb">grep </span>mysh
+</code></pre></div></div>
+</li>
+<li>
+<p>You should see that the new UTS namespace no longer exists - it's closed down as soon as its initial process (<code>mysh</code>) exits.  On our sample system, this was the result of that command:</p>
+<pre><code>root@docker:~# lsns | grep mysh
+root@docker:~# 
+</code></pre></li>
+<li>
+<p>Think about how we can do this with the other namespaces that one associates with containers:</p>
+</li>
+</ol>
+<ul>
+<li>Network (net)</li>
+<li>Control Group (cgroup)</li>
+<li>Process IDs (pid)</li>
+<li>User (user)</li>
+<li>Inter-process Communication (ipc)</li>
+<li>Filesysten (mnt)</li>
+</ul>
+<p>There's another namespace that we won't be working with: the Time namepsace, which virtualizes two Linux clocks (CLOCK_BOOTTIME and CLOCK_MONOTONIC).</p>
+<ol start="23">
+<li>
+<p>Let's explore two other namespaces, the PID namespace and the Mount (mnt) namespace. First, we'll need a filesystem. Download an alpine mini operating system root filesystem.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">urlpre</span><span class="o">=</span><span class="s2">"https://dl-cdn.alpinelinux.org/alpine/v3.18/releases/x86_64"</span>
+<span class="nv">file</span><span class="o">=</span><span class="s2">"alpine-minirootfs-3.18.2-x86_64.tar.gz"</span>
+curl <span class="nt">-LO</span> <span class="s2">"</span><span class="k">${</span><span class="nv">urlpre</span><span class="k">}</span><span class="s2">/</span><span class="k">${</span><span class="nv">file</span><span class="k">}</span><span class="s2">"</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Next, create a <code>rootfs</code> directory for the filesystem to go in.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">mkdir </span>rootfs
+</code></pre></div></div>
+</li>
+<li>
+<p>Finally, uncompress the alpine tarball into that directory.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">tar</span> <span class="nt">-xzvC</span> rootfs <span class="nt">-f</span> <span class="nv">$file</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Now, create a new pid namespace:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>unshare <span class="nt">--pid</span> <span class="nt">--fork</span> sh
+</code></pre></div></div>
+</li>
+<li>
+<p>Create a new mount namespace for an <code>sh</code> shell process, centered on the rootfs folder:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>unshare <span class="nt">--mount</span> <span class="nb">chroot </span>rootfs sh
+</code></pre></div></div>
+</li>
+<li>
+<p>Check out the filesystem. This virtual machine is a Debian machine. Read the <code>/etc/os-release</code> file.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cat</span> /etc/os-release
+</code></pre></div></div>
+</li>
+<li>
+<p>Notice that the filesystem in this mount namespace has an <code>os-release</code> file that indicates Alpine Linux.</p>
+</li>
+<li>
+<p>Next, let's create a new procfs in this directory:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>mount <span class="nt">-t</span> proc proc proc
+</code></pre></div></div>
+</li>
+<li>
+<p>Do a <code>ps</code> process listing to see all processes on the system:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>ps <span class="nt">-ef</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Notice that there are only a few visible processes and process ID (PID) 1 here is a shell, as opposed to <code>/sbin/init</code>.</p>
+</li>
+<li>
+<p>This exercise is over.</p>
+</li>
+</ol>
+
+  </div>
+
+  <div class="post-exercise">
+    <h2 id="exercise-done">Done With the Exercise</h2>
+
+<p>Please flip your sticker over so we know how many people are done with the exercise.</p>
+</p>
+    
+
+
+    <h2 id="suspend-vms">Virtual Machine Management Tips</h2>
+
+<p> If you want to see what virtual machines are currently running, you can run:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  virsh list  
+</code></pre></div>    </div>
+    
+<p>If you have virtual machines using RAM and CPU, you can suspend all of them with:</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  sudo /sync/bin/suspend-all-vms.sh 
+</code></pre></div>    </div>
+
+    
+
+  </div>
+
+</article>
+<script src="/assets/scripts/clipboard.min.js"></script>
+<script src="/assets/scripts/copy.js"></script>
+
+      </div>
+    </main><footer class="site-footer h-card">
+  <data class="u-url" href="/"></data>
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">Abusing and Protecting Kubernetes, Linux and Containers</h2>
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col footer-col-1">
+        <ul class="contact-list">
+          <li class="p-name">Abusing and Protecting Kubernetes, Linux and Containers</li><li><a class="u-email" href="mailto:contact@inguardians.com">contact@inguardians.com</a></li></ul>
+      </div>
+
+      <div class="footer-col footer-col-2"><ul class="social-media-list"><li><a href="https://github.com/inguardians"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#github"></use></svg> <span class="username">inguardians</span></a></li><li><a href="https://www.twitter.com/inguardians"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#twitter"></use></svg> <span class="username">inguardians</span></a></li></ul>
+</div>
+
+      <div class="footer-col footer-col-3">
+        <p></p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+</body>
+
+</html>

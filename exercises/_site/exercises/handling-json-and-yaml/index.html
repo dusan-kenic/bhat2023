@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Exercise: Handling JSON and YAML | Abusing and Protecting Kubernetes, Linux and Containers</title>
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Exercise: Handling JSON and YAML" />
+<meta property="og:locale" content="en_US" />
+<link rel="canonical" href="http://0.0.0.0:10000/exercises/handling-json-and-yaml/" />
+<meta property="og:url" content="http://0.0.0.0:10000/exercises/handling-json-and-yaml/" />
+<meta property="og:site_name" content="Abusing and Protecting Kubernetes, Linux and Containers" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Exercise: Handling JSON and YAML" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","headline":"Exercise: Handling JSON and YAML","url":"http://0.0.0.0:10000/exercises/handling-json-and-yaml/"}</script>
+<!-- End Jekyll SEO tag -->
+<link rel="stylesheet" href="/assets/main.css"><link type="application/atom+xml" rel="alternate" href="http://0.0.0.0:10000/feed.xml" title="Abusing and Protecting Kubernetes, Linux and Containers" /></head>
+<body><header class="site-header">
+
+    <div class="wrapper"><a class="site-title" rel="author" href="/">Abusing and Protecting Kubernetes, Linux and Containers</a>
+
+      <nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon">
+            <svg viewBox="0 0 18 15" width="18px" height="15px">
+              <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"/>
+            </svg>
+          </span>
+        </label>
+        <div class="trigger">
+            <a class="page-link" href="/">Exercises</a>
+            <a class="page-link" href="/about/">About</a>
+            <a class="page-link" href="/help/">Help</a>
+        </div>
+      </nav>
+
+      <!-- This is the section that comes from the default minima theme -->
+      
+    </div>
+  </header>
+<main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post">
+<link rel="stylesheet" href="/assets/css/style.css">
+ <header class="post-header">
+    <h1 class="post-title">Exercise: Handling JSON and YAML</h1>
+  </header>
+
+
+  <div class="post-content">
+    
+
+    <ol>
+<li>
+<p>Start up a fresh lxterminal by clicking the &quot;sparrow&quot; logo in the bottom-left corner of the screen, clicking run, typing <code>lxterminal</code> and hitting enter. Alternatively, use the hot key sequence below:</p>
+<pre><code>&lt;hold down Alt&gt;&lt;hit F2&gt;lxterminal&lt;HIT the enter key&gt;
+</code></pre></li>
+<li>
+<p>SSH into the control plane node on the cluster:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>ssh <span class="nt">-i</span> /sync/bustakube-node-key root@bustakube-controlplane
+</code></pre></div></div>
+</li>
+<li>
+<p>In this exercise, we'll use configMaps, secrets, namespaces, and pods to get comfortable with JSON and YAML.
+First, let's create a pod with a an ordinary volume. We define volumes in the pod manifest file. There isn't a kubectl run argument for this, so let's create a sample manifest with kubectl's <code>--dry-run=client -o yaml</code> argument:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">image</span><span class="o">=</span><span class="s2">"docker-registry:5000/nginx"</span>
+kubectl run pod-with-vol <span class="nt">--image</span><span class="o">=</span><span class="nv">$image</span> <span class="nt">--dry-run</span><span class="o">=</span>client <span class="nt">-o</span> yaml
+</code></pre></div></div>
+</li>
+<li>
+<p>Let's use the same command, but use json output, so we can use jq to add a &quot;volumes&quot; section to the &quot;spec&quot; section, at the same level of indention as the &quot;containers&quot; section:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl run pod-with-vol <span class="nt">--image</span><span class="o">=</span><span class="nv">$image</span> <span class="nt">--dry-run</span><span class="o">=</span>client <span class="nt">-o</span> json <span class="se">\</span>
+ | jq <span class="s1">'.spec.volumes[0].name="myvolume"'</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Take a look at how that created a volumes section, with a first item that had the name &quot;myvolume&quot;.  Here's the output on our test system, though we've removed a few lines for ease to make it easier to follow:</p>
+<pre><code>{
+&quot;kind&quot;: &quot;Pod&quot;,
+&quot;apiVersion&quot;: &quot;v1&quot;,
+&quot;metadata&quot;: {
+    &quot;name&quot;: &quot;pod-with-vol&quot;,
+},
+&quot;spec&quot;: {
+    &quot;containers&quot;: [
+    {
+        &quot;name&quot;: &quot;pod-with-vol&quot;,
+        &quot;image&quot;: &quot;docker-registry:5000/nginx&quot;,
+        &quot;resources&quot;: {}
+    }
+    ],
+    &quot;volumes&quot;: [
+    {
+        &quot;name&quot;: &quot;myvolume&quot;
+    }
+    ]
+},
+}
+</code></pre></li>
+<li>
+<p>Add one more assignment to the jq expression, so we give this volume a type of EmptyDir:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl run pod-with-vol <span class="nt">--image</span><span class="o">=</span><span class="nv">$image</span> <span class="nt">--dry-run</span><span class="o">=</span>client <span class="nt">-o</span> json | jq <span class="se">\</span>
+  <span class="s1">'.spec.volumes[0].name="myvolume" | .spec.volumes[0].emptyDir={}'</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>jq is wonderful, but it works exclusively with JSON. YAML is easier to read than JSON. Let's install yq, which is a jq wrapper that lets us handle both JSON and YAML:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>which yq <span class="o">&gt;</span>/dev/null 2&gt;/dev/null
+<span class="k">if</span> <span class="o">[</span> <span class="nv">$?</span> <span class="nt">-ne</span> 0 <span class="o">]</span><span class="p">;</span> <span class="k">then
+   </span><span class="nv">url</span><span class="o">=</span><span class="s2">"https://github.com/mikefarah/yq/releases/download/v4.23.1/yq_linux_amd64 "</span>
+   curl <span class="nt">-o</span> /usr/bin/yq <span class="nv">$url</span>
+   <span class="nb">chmod</span> +x /usr/bin/yq
+<span class="k">fi</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Let's repeat that manifest creation but without getting any JSON output. yq uses the same JSON-modification language, but can take YAML and input. It will output JSON, unless we add the <code>-Y</code> flag.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl run pod-with-vol <span class="nt">--image</span><span class="o">=</span><span class="nv">$image</span> <span class="nt">--dry-run</span><span class="o">=</span>client <span class="nt">-o</span> yaml | <span class="se">\</span>
+  yq <span class="nt">-Y</span> <span class="s1">'.spec.volumes[0].name="myvolume" | .spec.volumes[0].emptyDir={}'</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Let's write this YAML manifest to a file:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl run pod-with-vol <span class="nt">--image</span><span class="o">=</span><span class="nv">$image</span> <span class="nt">--dry-run</span><span class="o">=</span>client <span class="nt">-o</span> yaml | <span class="se">\</span>
+ yq <span class="nt">-Y</span> <span class="s1">'.spec.volumes[0].name="myvolume" | .spec.volumes[0].emptyDir={}'</span> <span class="se">\</span>
+ <span class="o">&gt;</span>pod-with-vol.yaml
+</code></pre></div></div>
+</li>
+<li>
+<p>Let's take at that file's volume-specific parts by using grep to see just the 7 lines before the &quot;volumes&quot; line and the 2 lines after it:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cat </span>pod-with-vol.yaml | <span class="nb">grep</span> <span class="nt">-B</span> 7 <span class="nt">-A</span> 2 volumes:
+</code></pre></div></div>
+</li>
+<li>
+<p>Notice how the volumes list was created. Here's the output of the last command on our test system:</p>
+<pre><code>spec:
+containers:
+- image: docker-registry:5000/nginx
+    name: pod-with-vol
+    resources: {}
+dnsPolicy: ClusterFirst
+restartPolicy: Always
+volumes:
+- emptyDir: {}
+    name: myvolume
+</code></pre></li>
+<li>
+<p>Let's keep going. So far, you've added a volume to the pod, but for this to be useful, you need to mount the <code>myvolume</code> volume into a container. Use yq to see the first container item in the containers list, as it stands right now:</p>
+<pre><code>cat pod-with-vol.yaml | yq -Y '.spec.containers[0]'
+</code></pre></li>
+<li>
+<p>Notice that this container doesn't have any <code>volumeMounts</code> yet. Here's the output of the last command on our test system:</p>
+<pre><code>image: docker-registry:5000/nginx
+name: pod-with-vol
+resources: {}
+</code></pre></li>
+<li>
+<p>Add a <code>volumeMount</code> to the first container. The command below adds it and then shows you just the containers section of the JSON manifest:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cat </span>pod-with-vol.yaml | yq <span class="nt">-Y</span> <span class="s1">'.spec.containers[0].volumeMounts[0].name="myvolume"'</span> | <span class="nb">grep</span> <span class="nt">-A</span> 5 containers
+</code></pre></div></div>
+</li>
+<li>
+<p>Now add one more part to the yq expression, to add a <code>mountPath</code> to the first <code>volumeMount</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cat </span>pod-with-vol.yaml | yq  <span class="nt">-Y</span> <span class="se">\</span>
+  <span class="s1">'.spec.containers[0].volumeMounts[0].name="myvolume" | .spec.containers[0].volumeMounts[0].mountPath="/mnt"'</span> <span class="se">\</span>
+  <span class="o">&gt;</span>pod-with-vol-mounted.yaml
+</code></pre></div></div>
+</li>
+<li>
+<p>Take a look at the first 12 lines of the spec:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cat </span>pod-with-vol-mounted.yaml | <span class="nb">grep</span> <span class="nt">-A</span> 12 spec:
+</code></pre></div></div>
+</li>
+<li>
+<p>Notice how the spec section has a container that mounts the <code>myvolume</code> volume onto <code>/mnt</code> and a volume that defines an EmptyDir volume, naming it <code>myvolume</code>. Here's the output of the last command on our test system:</p>
+<pre><code>spec:
+  containers:
+  - image: docker-registry:5000/nginx
+    name: pod-with-vol
+  resources: {}
+  volumeMounts:
+    - name: myvolume
+      mountPath: /mnt
+  dnsPolicy: ClusterFirst
+  restartPolicy: Always
+  volumes:
+  - name: myvolume
+    emptyDir: {}
+</code></pre></li>
+<li>
+<p>Let's add the image pull secret to allow the use of the private registry:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cat </span>pod-with-vol-mounted.yaml | yq <span class="nt">-Y</span> <span class="se">\</span>
+  <span class="s1">'.spec.imagePullSecrets[0].name="regcred-docker-registry-5000"'</span> <span class="se">\</span>
+  <span class="o">&gt;</span>pod-with-vol-mounted-regcred.yaml
+</code></pre></div></div>
+</li>
+<li>
+<p>Temporary for BHUSA2023: if you had created the pod already and so the new version isn't accepted, please delete the old pod:</p>
+<pre><code>kubectl delete pod pod-with-vol
+</code></pre></li>
+<li>
+<p>Let's create that pod, straight from the YAML manifest:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl apply <span class="nt">-f</span> pod-with-vol-mounted-regcred.yaml
+</code></pre></div></div>
+</li>
+<li>
+<p>Run a command in the pod's main container to see how Kubernetes mounts something onto the container's /mnt. We'll do it non-interactively:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl <span class="nb">exec </span>pod-with-vol <span class="nt">--</span> /bin/sh <span class="nt">-c</span> <span class="s1">'mount | grep mnt'</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Notice that the volume seems to be mounted from a device file, from the perspective of the container. Here's the output of the last command on our test system:</p>
+<pre><code>/dev/vda3 on /mnt type ext4 (rw,relatime,errors=remount-ro)
+</code></pre></li>
+<li>
+<p>That's enough about volumes for now. Let's get to ConfigMaps. ConfigMaps let us create an object with data (often configuration) that we'd like to pass into one or more pods. This data is written as key-value pairs. Let's create a simple configmap called cm-prod-db that contains two keys, dbname and ip, and their respective values, prod and 1.2.3.4:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl create configmap cm-prod-db <span class="nt">--from-literal</span><span class="o">=</span><span class="nv">dbname</span><span class="o">=</span>prod <span class="nt">--from-literal</span><span class="o">=</span><span class="nv">ip</span><span class="o">=</span>1.2.3.4
+</code></pre></div></div>
+</li>
+<li>
+<p>Take a look at the object this created - in the <code>data:</code> section, it shows the key-value pairs we set:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl get configmap cm-prod-db <span class="nt">-o</span> yaml
+</code></pre></div></div>
+</li>
+<li>
+<p>This is one of the few places where <code>get &lt;resource&gt; -o yaml</code> is more readable than <code>describe resource</code>.  See for yourself:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl describe configmap cm-prod-db
+</code></pre></div></div>
+</li>
+<li>
+<p><code>configmap</code> is a long word to keep typing - look up its short form with <code>kubectl api-resources</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl api-resources | <span class="nb">grep </span>configmaps
+</code></pre></div></div>
+</li>
+<li>
+<p>Let's get a list of configmaps:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl get cm
+</code></pre></div></div>
+</li>
+<li>
+<p>Now, let's create a pod manifest that defines an environment variable from this ConfigMap:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cat</span> <span class="o">&lt;&lt;</span><span class="no">EOF</span><span class="sh"> &gt;env-uses-cmap.yaml
+kind: Pod
+apiVersion: v1
+metadata:
+  name:      env-uses-cmap
+spec:
+  containers:
+  - name:    myctr
+    image:   docker-registry:5000/nginx
+    env:
+    - name: DBIP
+      valueFrom:
+        configMapKeyRef:
+          name: cm-prod-db
+          key: ip
+  imagePullSecrets:
+  - name: regcred-docker-registry-5000
+</span><span class="no">EOF
+</span></code></pre></div></div>
+</li>
+<li>
+<p>Create a pod from this manifest:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl create <span class="nt">-f</span> env-uses-cmap.yaml
+</code></pre></div></div>
+</li>
+<li>
+<p>Use <code>kubectl exec</code> to see the environment variable:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl <span class="nb">exec </span>env-uses-cmap <span class="nt">--</span> <span class="nb">env</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Notice that the <code>DBIP</code> environment variable is set to the ConfigMap's value for <code>ip</code>. Here's the output of the last command on our test system:</p>
+<pre><code>PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+HOSTNAME=env-uses-cmap
+DBIP=1.2.3.4
+KUBERNETES_PORT=tcp://10.96.0.1:443
+KUBERNETES_PORT_443_TCP=tcp://10.96.0.1:443
+KUBERNETES_PORT_443_TCP_PROTO=tcp
+KUBERNETES_PORT_443_TCP_PORT=443
+KUBERNETES_PORT_443_TCP_ADDR=10.96.0.1
+KUBERNETES_SERVICE_HOST=10.96.0.1
+KUBERNETES_SERVICE_PORT=443
+KUBERNETES_SERVICE_PORT_HTTPS=443
+NGINX_VERSION=1.21.6
+NJS_VERSION=0.7.2
+PKG_RELEASE=1~bullseye
+HOME=/root
+</code></pre></li>
+<li>
+<p>The values in a configmap can even be full files. Let's create a ConfigMap from a directory of files. First, create an html directory:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">mkdir </span>html
+</code></pre></div></div>
+</li>
+<li>
+<p>Next, create a file called 50x.html in that directory:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">echo</span> <span class="s2">"500-style error!"</span> <span class="o">&gt;</span>html/50x.html
+</code></pre></div></div>
+</li>
+<li>
+<p>Create one more file in the directory, an index.html file:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cat</span> <span class="o">&lt;&lt;</span><span class="no">EOF</span><span class="sh"> &gt;html/index.html
+&lt;html&gt;
+&lt;head&gt;
+&lt;title&gt;Welcome to nginx!&lt;/title&gt;
+&lt;/head&gt;
+&lt;/html&gt;
+</span><span class="no">EOF
+</span></code></pre></div></div>
+</li>
+<li>
+<p>Now create a ConfigMap called <code>cm-nginx</code> from that directory:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl create configmap cm-nginx <span class="nt">--from-file</span><span class="o">=</span>html/
+</code></pre></div></div>
+</li>
+<li>
+<p>Take a look at the ConfigMap:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl get cm cm-nginx <span class="nt">-o</span> yaml | egrep <span class="nt">-A</span> 9 <span class="s1">'^data:'</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Notice that the two text files you created in <code>html/</code> are embedded in the ConfigMap, with each filename being a key in the data section. Here's the output on our test system:</p>
+<pre><code>data:
+  50x.html: |
+    500-style error!
+  index.html: |
+    &lt;html&gt;
+    &lt;head&gt;
+    &lt;title&gt;Welcome to nginx!&lt;/title&gt;
+    &lt;/head&gt;
+    &lt;/html&gt;
+kind: ConfigMap
+</code></pre></li>
+<li>
+<p>Finally, create a pod manifest that uses <code>cm-nginx</code> as a configMap-type volume and mounts it into the container's /etc/nginx/conf.d/ directory:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cat</span> <span class="o">&lt;&lt;</span><span class="no">EOF</span><span class="sh"> &gt;nginx-cm-vol.yaml
+kind: Pod
+apiVersion: v1
+metadata:
+  name:       nginx-cm-vol
+spec:
+  containers:
+  - name:     nginx-cm-vol
+    image:    docker-registry:5000/nginx
+    volumeMounts:
+    - name:    configfiles
+      mountPath: "/etc/nginx/conf.d/"
+      readOnly: true
+  volumes:
+  - name:     configfiles
+    configMap:
+      name:   cm-nginx
+  imagePullSecrets:
+  - name: regcred-docker-registry-5000
+</span><span class="no">EOF
+</span></code></pre></div></div>
+</li>
+<li>
+<p>Create the pod:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl create <span class="nt">-f</span> nginx-cm-vol.yaml
+</code></pre></div></div>
+</li>
+<li>
+<p>Exec a find command in the pod to see how the ConfigMap's contents landed in the filesystem:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl <span class="nb">exec </span>nginx-cm-vol <span class="nt">--</span> find /etc/nginx/conf.d/
+</code></pre></div></div>
+</li>
+<li>
+<p>Now, let's create a namespace that we can put resources into:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl create namespace space
+</code></pre></div></div>
+</li>
+<li>
+<p>Take a look at the manifest that command creates:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl create namespace space <span class="nt">--dry-run</span><span class="o">=</span>client <span class="nt">-o</span> yaml
+</code></pre></div></div>
+</li>
+<li>
+<p>Notice that it's a pretty simple object. Here's the output on our test system:</p>
+<pre><code>apiVersion: v1
+kind: Namespace
+metadata:
+  creationTimestamp: null
+  name: space
+spec: {}
+status: {}
+</code></pre></li>
+<li>
+<p>Let's find the short name for namespace:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl api-resources | <span class="nb">grep </span>namespaces
+</code></pre></div></div>
+</li>
+<li>
+<p>Let's list the available namespaces:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl get ns
+</code></pre></div></div>
+</li>
+<li>
+<p>Now let's create a secret in our new namespace. Create the manifest first, passing in <code>-n space</code> to say this command should refer to the <code>space</code> namespace, not the <code>default</code> namespace (which all of our previous commands did):</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl <span class="nt">-n</span> space create secret generic db-creds <span class="se">\</span>
+  <span class="nt">--from-literal</span><span class="o">=</span><span class="nv">acctname</span><span class="o">=</span>invservice <span class="se">\</span>
+  <span class="nt">--from-literal</span><span class="o">=</span><span class="nv">password</span><span class="o">=</span>drowssap <span class="se">\</span>
+  <span class="nt">--dry-run</span><span class="o">=</span>client <span class="nt">-o</span> yaml
+</code></pre></div></div>
+</li>
+<li>
+<p>Notice how a secret's data section looks similar to a configmap's data section, except that the values are Base64-encoded. Also notice the <code>namespace:</code> item in the <code>metadata</code> section. Here's the output on our test system:</p>
+<pre><code>apiVersion: v1
+data:
+  acctname: aW52c2VydmljZQ==
+  password: ZHJvd3NzYXA=
+kind: Secret
+metadata:
+  creationTimestamp: null
+  name: db-creds
+  namespace: space
+</code></pre></li>
+<li>
+<p>Save the manifest to a YAML file:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl create <span class="nt">-n</span> space secret generic db-creds <span class="nt">--from-literal</span><span class="o">=</span><span class="nv">acctname</span><span class="o">=</span>invservice <span class="nt">--from-literal</span><span class="o">=</span><span class="nv">password</span><span class="o">=</span>drowssap <span class="nt">--dry-run</span><span class="o">=</span>client <span class="nt">-o</span> yaml <span class="o">&gt;</span>secret-db-creds.yaml
+</code></pre></div></div>
+</li>
+<li>
+<p>Now decode the acctname key's value, using yq's <code>-r</code> flag to get the &quot;raw&quot; output, that is, the output without quotation marks. We'll add an echo statement to the end to create a newline.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cat </span>secret-db-creds.yaml | yq <span class="nt">-r</span> <span class="s1">'.data.acctname'</span> | <span class="nb">base64</span> <span class="nt">-d</span> <span class="p">;</span> <span class="nb">echo</span> <span class="s2">""</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Notice that the value was the same as what we used to create the secret.  Here's the output on our test system:</p>
+<pre><code>invservice
+</code></pre></li>
+<li>
+<p>Create the secret from the manifest. Note that the <code>kubectl create</code> command doesn't need the <code>-n</code> flag, since the manifest already specifies the namespace.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl create <span class="nt">-f</span> secret-db-creds.yaml
+</code></pre></div></div>
+</li>
+<li>
+<p>Let's list all of the secrets in this namespace:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl <span class="nt">-n</span> space get secrets
+</code></pre></div></div>
+</li>
+<li>
+<p>Notice that we see our secret, as well as a default service account token secret. We'll talk about service account tokens later. Here's the output on our test system:</p>
+<pre><code>NAME                  TYPE                                  DATA   AGE
+db-creds              Opaque                                2      3s
+default-token-lzw8x   kubernetes.io/service-account-token   3      23m
+</code></pre></li>
+<li>
+<p>Let's request that secret's contents, parse out the value of its <code>password</code> entry, and Base64 decode it:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl <span class="nt">-n</span> space get secret db-creds <span class="nt">-o</span> yaml | yq <span class="nt">-r</span> <span class="s1">'.data.password'</span> | <span class="nb">base64</span> <span class="nt">-d</span> <span class="p">;</span> <span class="nb">echo</span> <span class="s2">""</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Notice that this is the same password we created the secret with. Here's the output on our test system:</p>
+<pre><code>drowssap
+</code></pre></li>
+<li>
+<p>This exercise is over.</p>
+</li>
+</ol>
+
+  </div>
+
+  <div class="post-exercise">
+    <h2 id="exercise-done">Done With the Exercise</h2>
+
+<p>Please flip your sticker over so we know how many people are done with the exercise.</p>
+</p>
+    
+
+
+    <h2 id="suspend-vms">Virtual Machine Management Tips</h2>
+
+<p> If you want to see what virtual machines are currently running, you can run:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  virsh list  
+</code></pre></div>    </div>
+    
+<p>If you have virtual machines using RAM and CPU, you can suspend all of them with:</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  sudo /sync/bin/suspend-all-vms.sh 
+</code></pre></div>    </div>
+
+    
+
+  </div>
+
+</article>
+<script src="/assets/scripts/clipboard.min.js"></script>
+<script src="/assets/scripts/copy.js"></script>
+
+      </div>
+    </main><footer class="site-footer h-card">
+  <data class="u-url" href="/"></data>
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">Abusing and Protecting Kubernetes, Linux and Containers</h2>
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col footer-col-1">
+        <ul class="contact-list">
+          <li class="p-name">Abusing and Protecting Kubernetes, Linux and Containers</li><li><a class="u-email" href="mailto:contact@inguardians.com">contact@inguardians.com</a></li></ul>
+      </div>
+
+      <div class="footer-col footer-col-2"><ul class="social-media-list"><li><a href="https://github.com/inguardians"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#github"></use></svg> <span class="username">inguardians</span></a></li><li><a href="https://www.twitter.com/inguardians"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#twitter"></use></svg> <span class="username">inguardians</span></a></li></ul>
+</div>
+
+      <div class="footer-col footer-col-3">
+        <p></p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+</body>
+
+</html>

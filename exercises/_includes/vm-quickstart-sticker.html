@@ -1,0 +1,17 @@
+<h2 id="before-you-start">Before you start</h2>
+
+<p>Please turn your sticker over, back to the not-yet-done side.</p>
+<p>Then start an lxterminal by clicking the "sparrow" logo in the bottom-left corner of the screen, clicking run, typing `lxterminal` and hitting enter. 
+</p>
+    
+<p>Now suspend all other virtual machines:</p>
+
+<div class="language-shell highlighter-rouge"><div 
+class="highlight"><pre class="highlight">
+<code>/sync/bin/suspend-all-vms.sh </code>
+</pre></div>    </div>
+
+<p>And then start the virtual machine:</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code>sudo virsh start {{ page.vm }}</code></pre></div>    </div>

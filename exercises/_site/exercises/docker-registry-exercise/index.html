@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Exercise: Container Registry | Abusing and Protecting Kubernetes, Linux and Containers</title>
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Exercise: Container Registry" />
+<meta property="og:locale" content="en_US" />
+<link rel="canonical" href="http://0.0.0.0:10000/exercises/docker-registry-exercise/" />
+<meta property="og:url" content="http://0.0.0.0:10000/exercises/docker-registry-exercise/" />
+<meta property="og:site_name" content="Abusing and Protecting Kubernetes, Linux and Containers" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Exercise: Container Registry" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","headline":"Exercise: Container Registry","url":"http://0.0.0.0:10000/exercises/docker-registry-exercise/"}</script>
+<!-- End Jekyll SEO tag -->
+<link rel="stylesheet" href="/assets/main.css"><link type="application/atom+xml" rel="alternate" href="http://0.0.0.0:10000/feed.xml" title="Abusing and Protecting Kubernetes, Linux and Containers" /></head>
+<body><header class="site-header">
+
+    <div class="wrapper"><a class="site-title" rel="author" href="/">Abusing and Protecting Kubernetes, Linux and Containers</a>
+
+      <nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon">
+            <svg viewBox="0 0 18 15" width="18px" height="15px">
+              <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"/>
+            </svg>
+          </span>
+        </label>
+        <div class="trigger">
+            <a class="page-link" href="/">Exercises</a>
+            <a class="page-link" href="/about/">About</a>
+            <a class="page-link" href="/help/">Help</a>
+        </div>
+      </nav>
+
+      <!-- This is the section that comes from the default minima theme -->
+      
+    </div>
+  </header>
+<main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post">
+<link rel="stylesheet" href="/assets/css/style.css">
+ <header class="post-header">
+    <h1 class="post-title">Exercise: Container Registry</h1>
+  </header>
+
+
+  <div class="post-content">
+    
+    <h2 id="before-you-start">Before you start</h2>
+
+<p>Please turn your sticker over, back to the not-yet-done side.</p>
+<p>Then start an lxterminal by clicking the "sparrow" logo in the bottom-left corner of the screen, clicking run, typing `lxterminal` and hitting enter. 
+</p>
+    
+<p>Now suspend all other virtual machines:</p>
+
+<div class="language-shell highlighter-rouge"><div 
+class="highlight"><pre class="highlight">
+<code>/sync/bin/suspend-all-vms.sh </code>
+</pre></div>    </div>
+
+<p>And then start the virtual machine:</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code>sudo virsh start docker</code></pre></div>    </div>
+
+    
+
+    <h2 id="steps">Steps</h2>
+<p>Docker has a very useful feature that uses this layered union-mounted filesystem.</p>
+<p>When we build another container image whose <code>Dockerfile</code> has lines in common with a <code>Dockerfile</code> we've already built against, Docker keeps track of what filesystem layer contained the changes made by each step in the <code>Dockerfile</code>, and skips running the command when it knows what the results would be. We'll explore this here.</p>
+<p><em>NOTE: when an instruction shows you the results from our test system, it often won't match your machine exactly down to the numbers, especially when time units like seconds are involved.  Don't worry about this.</em></p>
+<ol>
+<li>
+<p>Start up a fresh <code>lxterminal</code> by clicking the &quot;sparrow&quot; logo in the bottom-left corner of the screen, clicking run, typing <code>lxterminal</code> and hitting enter. Alternatively, use the hot key sequence below:</p>
+<pre><code>&lt;hold down Alt&gt;&lt;hit F2&gt;lxterminal&lt;HIT the enter key&gt;
+</code></pre></li>
+<li>
+<p>Log in to the <code>docker</code> virtual machine with password <code>logidebtech</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>ssh user@docker
+</code></pre></div></div>
+</li>
+<li>
+<p>Make sure you have the <code>gcr.io/distroless/base</code> image on this host - we have chosen it for its small filesystem size. <code>docker pull</code> retrieves the image from the <code>gcr.io</code> image registry and caches it on this machine's Docker cache. We've chosen a specific version of this container image from July 2023.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">repo</span><span class="o">=</span><span class="s2">"gcr.io/distroless/base@sha256:"</span>
+<span class="nv">tag</span><span class="o">=</span><span class="s2">"73deaaf6a207c1a33850257ba74e0f196bc418636cada9943a03d7abea980d6d"</span>
+docker pull <span class="k">${</span><span class="nv">repo</span><span class="k">}${</span><span class="nv">tag</span><span class="k">}</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Start the Docker registry now on this host.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>docker run <span class="nt">--name</span><span class="o">=</span>registry <span class="nt">-d</span>  <span class="nt">-p</span> 5000:5000 <span class="se">\</span>
+<span class="nt">-e</span> <span class="nv">REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY</span><span class="o">=</span>/data <span class="se">\</span>
+<span class="nt">-v</span> /registrydata:/data <span class="nt">--restart</span><span class="o">=</span>always registry:2
+</code></pre></div></div>
+</li>
+<li>
+<p>Tag the <code>distroless/base</code> image you already have as <code>distroless-base</code>, but on your private local registry, where it will thus be named <code>localhost:5000/distroless-base</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+docker tag <span class="k">${</span><span class="nv">repo</span><span class="k">}${</span><span class="nv">tag</span><span class="k">}</span> localhost:5000/distroless-base
+</code></pre></div></div>
+</li>
+<li>
+<p>Push this image up to your local registry:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>docker push localhost:5000/distroless-base
+</code></pre></div></div>
+</li>
+<li>
+<p>Now delete your local copy of <code>gcr.io/distroless/base</code>, but look at the free disk space before and after:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">df</span> <span class="nt">-m</span> /
+docker rmi <span class="k">${</span><span class="nv">repo</span><span class="k">}${</span><span class="nv">tag</span><span class="k">}</span>
+<span class="nb">df</span> <span class="nt">-m</span> /
+</code></pre></div></div>
+</li>
+<li>
+<p>Notice that the operation didn't really free up space -- here's the output from our test system:</p>
+<pre><code>Filesystem     1M-blocks  Used Available Use% Mounted on
+/dev/vda1           5883  2657      2950  48% /
+Untagged: gcr.io/distroless/base@sha256:73deaaf6a207c1a33850257ba74e0f196bc418636cada9943a03d7abea980d6d
+Filesystem     1M-blocks  Used Available Use% Mounted on
+/dev/vda1           5883  2657      2950  48% /
+</code></pre></li>
+<li>
+<p>Now delete your local copy of your registry's <code>distroless-base</code> image using the <code>docker rmi</code> (remove image) command. Check the free disk space before and after:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">df</span> <span class="nt">-m</span> /
+docker rmi localhost:5000/distroless-base
+<span class="nb">df</span> <span class="nt">-m</span> /
+</code></pre></div></div>
+</li>
+<li>
+<p>Notice that this image deletion did free up space and that this image remove command had three extra lines of output, saying that layers were deleted. Here's output from our test system:</p>
+<pre><code>Filesystem     1M-blocks  Used Available Use% Mounted on
+/dev/vda1           5883  2657      2950  48% /
+
+Untagged: localhost:5000/distroless-base:latest
+Untagged: localhost:5000/distroless-base@sha256:c11cf17ee8a54dd3a44908ed3f38ffbfb41f1c8c6a2264de9b3e2f5ef4576006
+Deleted: sha256:e03afa0858f2679999f6f9403e47509b63c2905a42a638fb21089f639af4ab28
+Deleted: sha256:c4d1cfefb2a1af664d2b6836bd7dcdfd52c28a2c0ef1818e230c8aa5c1521a60
+Deleted: sha256:c455ff9a6648ab90925bc799231d85776c8c373c25aed889e73c302e40c0b786
+Deleted: sha256:44043657805a72c00d6f483e5e1c05211be291b47bd5edb2019f8b10206b271c
+Deleted: sha256:1ba79e3210ffec19b0aac78261ef3b56c9d572a84ce171d99f8c5e9f8c8ceec9
+Deleted: sha256:92c2f7f2279d20f21e80a81748d3e535ac005414c173369bad07900665f4ce38
+Deleted: sha256:7c9bca19ee3fad0b4f850527fb2f75115a075b6ef771b57f995c3322cb2bb64a
+Deleted: sha256:d1619da8540b89bfc797c583754f20f42e0846611104a59fa13701cdf5842255
+Deleted: sha256:0ffd82d96dd6ccfbbbb6bbc2492bd3d256b8cdb01144e8140a4c55f12ae835dc
+Deleted: sha256:18fdb66c6a41b89620c96035277ec03d4069d27ae0b174b0e89f26530eeba864
+Deleted: sha256:f96114e9454bb8b5edf548870b385293d170efffaaf27ec6bca0df5396b830ef
+Deleted: sha256:9300705518a3ff9222e78cbbabf1108e0b3336c28a1d40b05cfea89bc41d1bd0
+Deleted: sha256:e023e0e48e6e29e90e519f4dd356d058ff2bffbd16e28b802f3b8f93aa4ccb17
+
+Filesystem     1M-blocks  Used Available Use% Mounted on
+/dev/vda1           5883  2632      2975  47% /
+</code></pre></li>
+<li>
+<p>Think about what's happening here. Docker is saving space by keeping a hash of each image layer and simply tagging one or more layers with whatever name we tag it with. So the <code>distroless/base</code> image layers aren't deleted until no tags refer to them.</p>
+</li>
+<li>
+<p>Now, let's pull this image back down from our local registry:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>docker pull localhost:5000/distroless-base
+</code></pre></div></div>
+</li>
+<li>
+<p>Let's create an image based on this one. Switch directory to <code>/home/user/imagedev/</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cd</span> /home/user/imagedev/
+</code></pre></div></div>
+</li>
+<li>
+<p>Create a <code>Dockerfile</code> in this directory.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cat</span> <span class="o">&lt;&lt;</span><span class="no">EOF</span><span class="sh"> &gt;Dockerfile
+FROM localhost:5000/distroless-base
+COPY Dockerfile /usr/share
+</span><span class="no">EOF
+</span></code></pre></div></div>
+</li>
+<li>
+<p>This Dockerfile says we'll start with the <code>distroless/base</code> image you just pushed to the repository, then copies the current directory's Dockerfile into it.</p>
+<pre><code>FROM localhost:5000/distroless-base
+COPY Dockerfile /usr/share
+</code></pre></li>
+<li>
+<p>Build a container from this image with the <code>docker build</code> command, which takes a name (a tag) and a directory in which to find a <code>Dockerfile</code> file. We'll call this image <code>localhost:5000/base-plus-dockerfile</code>.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>docker build <span class="nt">-t</span> localhost:5000/base-plus-dockerfile <span class="nb">.</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Now let's build a more useful container image. Change directory to the <code>build-with-du</code> subdirectory:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cd</span> /home/user/imagedev/build-with-du
+</code></pre></div></div>
+</li>
+<li>
+<p>Display the <code>Dockerfile</code> in this directory.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cat </span>Dockerfile
+</code></pre></div></div>
+</li>
+<li>
+<p>Note how this Dockerfile starts with the <code>localhost:5000/distroless-base</code> image, then copies a <code>du</code> binary into <code>bin/</code>. It also uses two more directives, <code>ENTRYPOINT</code> and <code>CMD</code>, to specify a program to run when the container starts, along with any arguments passed in on the command line. Here's the sample output on our system:</p>
+<pre><code>FROM localhost:5000/distroless-base
+COPY du bin/
+ENTRYPOINT [&quot;/bin/du&quot;,&quot;-ks&quot;]
+CMD [&quot;/bin&quot;]
+</code></pre></li>
+<li>
+<p>Build a container from this image with the <code>docker build</code> command, which takes a tag and a directory in which to find a <code>Dockerfile</code> file.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>docker build <span class="nt">-t</span> localhost:5000/base-plus-du ./
+</code></pre></div></div>
+</li>
+<li>
+<p>Let's start a container based on <code>localhost:5000/base-plus-du</code>, using the <code>-d</code> (detach) flag to detach from the container's stdio. We'll name the container <code>ctr</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>docker run <span class="nt">-d</span> <span class="nt">--name</span><span class="o">=</span>ctr localhost:5000/base-plus-du
+</code></pre></div></div>
+</li>
+<li>
+<p>This container has completed and exited, but we can go look at its output via the <code>docker logs</code> command:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>docker logs ctr
+</code></pre></div></div>
+</li>
+<li>
+<p>The output you see will be the size of the <code>/bin/</code> directory in bytes. Delete the container now:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>docker <span class="nb">rm </span>ctr
+</code></pre></div></div>
+</li>
+<li>
+<p>Note that the container's output gave us the disk usage of the <code>/bin</code> directory in kilobytes. What if we wanted this image to do the same thing, using <code>/bin</code> as a default directory to measure, but allowing the user to specify a different directory, say <code>/usr</code>, without having to rebuild the image? This is exactly what <code>CMD</code> does in the Dockerfile. It indicates arguments that you can override easily, by putting them on the end of the <code>docker run</code> command line. Let's remove the <code>-d</code> flag, so we can see the output in real time and add a <code>-rm</code> flag, so the container is destroyed as soon as it exits:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>docker run <span class="nt">--rm</span> <span class="nt">--name</span><span class="o">=</span>ctr2 localhost:5000/base-plus-du /usr
+</code></pre></div></div>
+</li>
+<li>
+<p>Note that we now see the total size of the <code>/usr</code> directory in kilobytes. So, you've seen how <code>ENTRYPOINT</code> and <code>CMD</code> interplay. Summarizing:</p>
+<ul>
+<li>
+<p><code>ENTRYPOINT</code> tells Docker what program to run when this container starts. It can optionally include arguments. These arguments aren't easily overriden, unless the entire entrypoint program is replaced.</p>
+</li>
+<li>
+<p><code>CMD</code> indicates arguments that Docker should add to the command line created from <code>ENTRYPOINT</code>. These arguments are intended to be easily overwritten, the way we overwrote <code>/bin</code> with <code>/usr</code>.</p>
+</li>
+<li>
+<p>This produces the situation where the command run as the container's first process will start with <code>du -ks</code> and end with either <code>/bin</code> or whatever is placed after the image name on the <code>docker run</code> command line.</p>
+</li>
+</ul>
+</li>
+<li>
+<p>Let's push this container image we've built to our local registry - the output should be interesting:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>docker push localhost:5000/base-plus-du
+</code></pre></div></div>
+</li>
+<li>
+<p>Note that the output shows that Docker didn't have to push the two of the layers to the registry, as the registry already had them! Our sample output follows:</p>
+<pre><code>Using default tag: latest
+The push refers to repository [localhost:5000/base-plus-du]
+7d221ee8ae69: Pushed
+f89ce21aca6a: Mounted from distroless-base
+0b031aac6569: Mounted from distroless-base
+latest: digest: sha256:52ee4f9b7565d65f3c2db68afd97384ebadbe0899f0f6076ce2c5c43489550b6 size: 947
+</code></pre></li>
+<li>
+<p>That will certainly make things faster, especially when we're pushing to an Internet-connected registry like Docker Hub! Let's delete the <code>base-plus-du</code> image from our local image cache - we'll leave it up on the registry, of course:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>docker rmi localhost:5000/base-plus-du
+</code></pre></div></div>
+</li>
+<li>
+<p>Now, let's pull down the container image again.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>docker pull localhost:5000/base-plus-du
+</code></pre></div></div>
+</li>
+<li>
+<p>Note that Docker didn't have to pull down some of the layers - the ones that were part of the <code>distroless-base</code> that it still had cached. Here's the sample output from our machine:</p>
+<pre><code>Using default tag: latest
+latest: Pulling from base-plus-du
+36698cfa5275: Already exists
+6a8659ec8836: Already exists
+7cf3941d8a27: Already exists
+Digest: sha256:52ee4f9b7565d65f3c2db68afd97384ebadbe0899f0f6076ce2c5c43489550b6
+Status: Downloaded newer image for localhost:5000/base-plus-du:latest
+localhost:5000/base-plus-du:latest
+</code></pre></li>
+<li>
+<p>Imagine that a colleague of yours had already cached <code>distroless-base</code> and wanted to download <code>base-plus-du</code> the way you just did. Their download time would be greatly reduced because they only need to pull down this one layer of the image: the layer that represents these lines from the <code>Dockerfile</code>:</p>
+<pre><code>COPY du bin/
+ENTRYPOINT [&quot;/bin/du&quot;,&quot;-ks&quot;]
+CMD [&quot;/bin&quot;]
+</code></pre></li>
+<li>
+<p>Let's run a container to see one more Docker feature: volume mounting. Start a new container based on <code>base-plus-du</code>, but mount the host's <code>/usr</code> onto the container's <code>/mnt</code> directory using <code>-v</code>, and tell the container to do a disk usage tally of that directory:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>docker run <span class="nt">-v</span> /usr:/mnt <span class="nt">--rm</span> <span class="nt">--name</span><span class="o">=</span>ctr3 localhost:5000/base-plus-du <span class="se">\</span>
+ /mnt
+</code></pre></div></div>
+</li>
+<li>
+<p>Note that this operation took a little longer to run. It also showed the enormous size difference of your the virtual machine's <code>/usr</code> directory, versus that of the container's <code>/usr</code> directory. Here's the output of this command from our machine:</p>
+<pre><code>1484456	/mnt
+</code></pre></li>
+<li>
+<p>Finally, let's build the container image from the <code>/home/user/imagedev/busybox-from-scratch</code> directory, then explore it with an interactive shell. Here are the commands to build the image:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cd</span> /home/user/imagedev/busybox-from-scratch
+docker build <span class="nt">-t</span> localhost:5000/busyboxfromscratch <span class="nb">.</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Stop for a second to check how much smaller the last couple images you've built are than <code>centos</code> was:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>docker images | egrep <span class="s1">'(centos|busybox|base-plus-du)'</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Notice that the two images you built are about one tenth (0.1) times the size of the <code>centos:7</code> image.  Here's the sample output from our system:</p>
+<pre><code>localhost:5000/busyboxfromscratch     latest    4cbcffbfe310   2 minutes ago    21.2MB
+localhost:5000/base-plus-du           latest    750eabf6a6b2   31 minutes ago   20.4MB
+centos                                7         eeb6ee3f44bd   6 months ago     204MB
+</code></pre></li>
+<li>
+<p>Now explore the busybox image via an interactive shell in a running container - feel free to run a few commands in the container, but don't exit the shell:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>docker run <span class="nt">-it</span> <span class="nt">--name</span><span class="o">=</span>busybox <span class="se">\</span>
+localhost:5000/busyboxfromscratch /bin/sh
+</code></pre></div></div>
+</li>
+<li>
+<p>Detach from the container's shell by holding down <code>Ctrl-P</code>, and then hitting <code>Q</code>.</p>
+</li>
+<li>
+<p>Run a <code>docker inspect</code> command to see how you might get the details for a container, like its IP address:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>docker inspect busybox
+</code></pre></div></div>
+</li>
+<li>
+<p>Notice that the end of the output shows the container's IP address. After class, you can parse the rest of the output with <code>jq</code> if you'd like. You don't need to - just realize this is part of how Kubernetes will be orchestrating, say, networking, for thousands of containers. Here's the end of our sample output on that last command:</p>
+<pre><code>                    &quot;IPAddress&quot;: &quot;172.17.0.3&quot;,
+                    &quot;IPPrefixLen&quot;: 16,
+                    &quot;IPv6Gateway&quot;: &quot;&quot;,
+                    &quot;GlobalIPv6Address&quot;: &quot;&quot;,
+                    &quot;GlobalIPv6PrefixLen&quot;: 0,
+                    &quot;MacAddress&quot;: &quot;02:42:ac:11:00:03&quot;,
+                    &quot;DriverOpts&quot;: null
+                }
+            }
+        }
+    }
+]
+</code></pre></li>
+<li>
+<p>Feel free to close this terminal window/tab to disconnect your SSH session to this virtual machine.</p>
+</li>
+</ol>
+
+  </div>
+
+  <div class="post-exercise">
+    <h2 id="exercise-done">Done With the Exercise</h2>
+
+<p>Please flip your sticker over so we know how many people are done with the exercise.</p>
+</p>
+    
+
+
+    <h2 id="suspend-vms">Virtual Machine Management Tips</h2>
+
+<p> If you want to see what virtual machines are currently running, you can run:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  virsh list  
+</code></pre></div>    </div>
+    
+<p>If you have virtual machines using RAM and CPU, you can suspend all of them with:</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  sudo /sync/bin/suspend-all-vms.sh 
+</code></pre></div>    </div>
+
+    
+
+  </div>
+
+</article>
+<script src="/assets/scripts/clipboard.min.js"></script>
+<script src="/assets/scripts/copy.js"></script>
+
+      </div>
+    </main><footer class="site-footer h-card">
+  <data class="u-url" href="/"></data>
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">Abusing and Protecting Kubernetes, Linux and Containers</h2>
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col footer-col-1">
+        <ul class="contact-list">
+          <li class="p-name">Abusing and Protecting Kubernetes, Linux and Containers</li><li><a class="u-email" href="mailto:contact@inguardians.com">contact@inguardians.com</a></li></ul>
+      </div>
+
+      <div class="footer-col footer-col-2"><ul class="social-media-list"><li><a href="https://github.com/inguardians"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#github"></use></svg> <span class="username">inguardians</span></a></li><li><a href="https://www.twitter.com/inguardians"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#twitter"></use></svg> <span class="username">inguardians</span></a></li></ul>
+</div>
+
+      <div class="footer-col footer-col-3">
+        <p></p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+</body>
+
+</html>

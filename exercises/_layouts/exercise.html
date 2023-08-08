@@ -1,0 +1,28 @@
+---
+layout: default
+---
+<article class="post">
+<link rel="stylesheet" href="/assets/css/style.css">
+ <header class="post-header">
+    <h1 class="post-title">{{ page.title | escape }}</h1>
+  </header>
+
+
+  <div class="post-content">
+    {% if page.vm %}
+    {% include vm-quickstart.html exercise=page.vm %}
+    {% endif %}
+
+    {{ content }}
+  </div>
+
+  <div class="post-exercise">
+    {% include exercise-completion.html %}
+    {% include vm-management.html  %}
+    
+
+  </div>
+
+</article>
+<script src="/assets/scripts/clipboard.min.js"></script>
+<script src="/assets/scripts/copy.js"></script>

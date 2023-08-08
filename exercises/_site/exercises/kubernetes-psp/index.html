@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Exercise: Kubernetes Pod Security Policy Defense | Abusing and Protecting Kubernetes, Linux and Containers</title>
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Exercise: Kubernetes Pod Security Policy Defense" />
+<meta property="og:locale" content="en_US" />
+<link rel="canonical" href="http://0.0.0.0:10000/exercises/kubernetes-psp/" />
+<meta property="og:url" content="http://0.0.0.0:10000/exercises/kubernetes-psp/" />
+<meta property="og:site_name" content="Abusing and Protecting Kubernetes, Linux and Containers" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Exercise: Kubernetes Pod Security Policy Defense" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","headline":"Exercise: Kubernetes Pod Security Policy Defense","url":"http://0.0.0.0:10000/exercises/kubernetes-psp/"}</script>
+<!-- End Jekyll SEO tag -->
+<link rel="stylesheet" href="/assets/main.css"><link type="application/atom+xml" rel="alternate" href="http://0.0.0.0:10000/feed.xml" title="Abusing and Protecting Kubernetes, Linux and Containers" /></head>
+<body><header class="site-header">
+
+    <div class="wrapper"><a class="site-title" rel="author" href="/">Abusing and Protecting Kubernetes, Linux and Containers</a>
+
+      <nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon">
+            <svg viewBox="0 0 18 15" width="18px" height="15px">
+              <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"/>
+            </svg>
+          </span>
+        </label>
+        <div class="trigger">
+            <a class="page-link" href="/">Exercises</a>
+            <a class="page-link" href="/about/">About</a>
+            <a class="page-link" href="/help/">Help</a>
+        </div>
+      </nav>
+
+      <!-- This is the section that comes from the default minima theme -->
+      
+    </div>
+  </header>
+<main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post">
+<link rel="stylesheet" href="/assets/css/style.css">
+ <header class="post-header">
+    <h1 class="post-title">Exercise: Kubernetes Pod Security Policy Defense</h1>
+  </header>
+
+
+  <div class="post-content">
+    
+
+    <h2 id="steps">Steps</h2>
+<p>Let's try another defense on the cluster takeover scenario: pod security policies. Now we want to stop any non-admin account from staging the attack pod. Our other focus will be to make sure that any pod launched has to have an AppArmor profile.</p>
+<ol>
+<li>
+<p>Start up a fresh lxterminal by clicking the &quot;sparrow&quot; logo in the bottom-left corner of the screen, clicking run, typing <code>lxterminal</code> and hitting enter. Alternatively, use the hot key sequence below:</p>
+<pre><code>&lt;hold down Alt&gt;&lt;hit F2&gt;lxterminal&lt;HIT the enter key&gt;
+</code></pre></li>
+<li>
+<p>Start your Kubernetes cluster - we will use this one for all Kubernetes exercises except for the Cloud Attacks, Peirates and Node Attacks:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>/sync/bin/suspend-all-vms.sh
+/sync/bin/start-bustakube.sh
+</code></pre></div></div>
+</li>
+<li>
+<p>Wait a minute for the VM to boot, then SSH into the control plane node on the cluster:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>ssh <span class="nt">-i</span> /sync/bustakube-node-key root@bustakube-controlplane
+</code></pre></div></div>
+</li>
+<li>
+<p>Run the stage script for the first scenario:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cd</span> /usr/share/bustakube/Scenario1-OwnTheNodes/
+./stage-scenario-1.sh
+</code></pre></div></div>
+</li>
+<li>
+<p>Wait for the script to finish.</p>
+</li>
+<li>
+<p>Let's remove the RBAC controls we had added at the end of the <a href="/exercises/kubernetes-own-the-nodes/">Own the Nodes exercise</a>.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl delete rolebinding get-only-on-pods-frontend-binding
+kubectl delete rolebinding get-only-on-pods-redis-binding
+<span class="nb">cd </span>Namespace-Default/
+kubectl apply <span class="nt">-f</span> binding-get-list-exec-pods-to-frontend.yaml
+kubectl apply <span class="nt">-f</span> binding-full-rw-and-exec-on-pods-to-redis.yaml
+</code></pre></div></div>
+</li>
+<li>
+<p>We'll apply a pod security policy (PSP) that will block any <code>hostPath</code> volumes from being mounted. Take a look:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cd</span> ../Defense/PodSecurityPolicies
+more psp-30-root-allowed-no-apparmor-required.yaml
+</code></pre></div></div>
+</li>
+<li>
+<p>Now, apply the pod security policy you just reviewed:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl apply <span class="nt">-f</span> psp-30-root-allowed-no-apparmor-required.yaml
+</code></pre></div></div>
+</li>
+<li>
+<p>We need a role, a list of actions that can be performed by any bound service accounts:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl apply <span class="nt">-f</span> <span class="se">\</span>
+ role-cluster-use-psp-30-root-allowed-no-apparmor-required.yaml
+</code></pre></div></div>
+</li>
+<li>
+<p>We'll need a binding that binds all authenticated users to this role:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl apply <span class="nt">-f</span> <span class="se">\</span>
+ binding-cluster-all-to-psp-30-root-allowed-no-apparmor-required.yaml
+</code></pre></div></div>
+</li>
+<li>
+<p>Before we go on, we'll need to activate the PodSecurityPolicy controller.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>/usr/local/bin/toggle-psp-controller.sh activate
+</code></pre></div></div>
+</li>
+<li>
+<p>Now, let's see that the <code>redis-master</code> pod's service account can't stage such a pod. First, copy <code>kubectl</code> and the attack pod definition into the <code>redis-master</code> pod:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">pod</span><span class="o">=</span><span class="sb">`</span>kubectl get pods | <span class="nb">grep </span>redis-master | <span class="nb">awk</span> <span class="s1">'{print $1}'</span><span class="sb">`</span>
+kubectl <span class="nb">cp</span> /usr/bin/kubectl <span class="nv">$pod</span>:/usr/bin
+kubectl <span class="nb">cp</span> ../../Attack/attack-pod.yaml <span class="nv">$pod</span>:/tmp
+</code></pre></div></div>
+</li>
+<li>
+<p>Now, exec into the <code>redis-master</code> pod. to see whether it can stage a hostPath-mounting pod:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl <span class="nb">exec</span> <span class="nt">-it</span> <span class="nv">$pod</span> <span class="nt">--</span> /bin/bash
+<span class="nb">export </span><span class="nv">PS1</span><span class="o">=</span><span class="s2">"</span><span class="se">\u</span><span class="s2">@</span><span class="se">\h</span><span class="s2"> # "</span>
+kubectl apply <span class="nt">-f</span> /tmp/attack-pod.yaml
+</code></pre></div></div>
+</li>
+<li>
+<p>For extra credit, see if you can modify the pod security policy to allow the <code>hostPath</code> pod mounting, but to force an AppArmor profile that won't permit the pod to read the host's <code>/etc/shadow</code> file.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">echo </span>Extra credit - I am on my own here
+</code></pre></div></div>
+</li>
+</ol>
+
+  </div>
+
+  <div class="post-exercise">
+    <h2 id="exercise-done">Done With the Exercise</h2>
+
+<p>Please flip your sticker over so we know how many people are done with the exercise.</p>
+</p>
+    
+
+
+    <h2 id="suspend-vms">Virtual Machine Management Tips</h2>
+
+<p> If you want to see what virtual machines are currently running, you can run:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  virsh list  
+</code></pre></div>    </div>
+    
+<p>If you have virtual machines using RAM and CPU, you can suspend all of them with:</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  sudo /sync/bin/suspend-all-vms.sh 
+</code></pre></div>    </div>
+
+    
+
+  </div>
+
+</article>
+<script src="/assets/scripts/clipboard.min.js"></script>
+<script src="/assets/scripts/copy.js"></script>
+
+      </div>
+    </main><footer class="site-footer h-card">
+  <data class="u-url" href="/"></data>
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">Abusing and Protecting Kubernetes, Linux and Containers</h2>
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col footer-col-1">
+        <ul class="contact-list">
+          <li class="p-name">Abusing and Protecting Kubernetes, Linux and Containers</li><li><a class="u-email" href="mailto:contact@inguardians.com">contact@inguardians.com</a></li></ul>
+      </div>
+
+      <div class="footer-col footer-col-2"><ul class="social-media-list"><li><a href="https://github.com/inguardians"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#github"></use></svg> <span class="username">inguardians</span></a></li><li><a href="https://www.twitter.com/inguardians"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#twitter"></use></svg> <span class="username">inguardians</span></a></li></ul>
+</div>
+
+      <div class="footer-col footer-col-3">
+        <p></p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+</body>
+
+</html>

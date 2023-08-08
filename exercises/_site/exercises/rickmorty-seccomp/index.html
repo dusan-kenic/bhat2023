@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Exercise: seccomp via Docker | Abusing and Protecting Kubernetes, Linux and Containers</title>
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Exercise: seccomp via Docker" />
+<meta property="og:locale" content="en_US" />
+<link rel="canonical" href="http://0.0.0.0:10000/exercises/rickmorty-seccomp/" />
+<meta property="og:url" content="http://0.0.0.0:10000/exercises/rickmorty-seccomp/" />
+<meta property="og:site_name" content="Abusing and Protecting Kubernetes, Linux and Containers" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Exercise: seccomp via Docker" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","headline":"Exercise: seccomp via Docker","url":"http://0.0.0.0:10000/exercises/rickmorty-seccomp/"}</script>
+<!-- End Jekyll SEO tag -->
+<link rel="stylesheet" href="/assets/main.css"><link type="application/atom+xml" rel="alternate" href="http://0.0.0.0:10000/feed.xml" title="Abusing and Protecting Kubernetes, Linux and Containers" /></head>
+<body><header class="site-header">
+
+    <div class="wrapper"><a class="site-title" rel="author" href="/">Abusing and Protecting Kubernetes, Linux and Containers</a>
+
+      <nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon">
+            <svg viewBox="0 0 18 15" width="18px" height="15px">
+              <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"/>
+            </svg>
+          </span>
+        </label>
+        <div class="trigger">
+            <a class="page-link" href="/">Exercises</a>
+            <a class="page-link" href="/about/">About</a>
+            <a class="page-link" href="/help/">Help</a>
+        </div>
+      </nav>
+
+      <!-- This is the section that comes from the default minima theme -->
+      
+    </div>
+  </header>
+<main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post">
+<link rel="stylesheet" href="/assets/css/style.css">
+ <header class="post-header">
+    <h1 class="post-title">Exercise: seccomp via Docker</h1>
+  </header>
+
+
+  <div class="post-content">
+    
+    <h2 id="before-you-start">Before you start</h2>
+
+<p>Please turn your sticker over, back to the not-yet-done side.</p>
+<p>Then start an lxterminal by clicking the "sparrow" logo in the bottom-left corner of the screen, clicking run, typing `lxterminal` and hitting enter. 
+</p>
+    
+<p>Now suspend all other virtual machines:</p>
+
+<div class="language-shell highlighter-rouge"><div 
+class="highlight"><pre class="highlight">
+<code>/sync/bin/suspend-all-vms.sh </code>
+</pre></div>    </div>
+
+<p>And then start the virtual machine:</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code>sudo virsh start rickmorty</code></pre></div>    </div>
+
+    
+
+    <h2 id="steps">Steps</h2>
+<p>In this exercise, we're going to create a <code>seccomp</code> profile. <code>seccomp</code> profiles allow us to create an allow list of system calls that the program normally uses, then prevent the program from using system calls outside of that list. If the program is taken over by an attacker with an exploit, the system call limitation can either block the exploitation or make the compromised program far less useful for the attacker.</p>
+<p>To keep this simple, we've created a program called <code>echoforeground</code> which we pretend is a trojan horse.  We're pretending that in its normal behavior, it should ask a question, give an answer, but never give away a text file.  We'll be doing this exercise with the RickdickulouslyEasy (<code>rickmorty</code>) CTF machine. The program listens on TCP port <code>22001</code>.</p>
+<ol>
+<li>
+<p>Start up a fresh lxterminal by clicking the &quot;sparrow&quot; logo in the bottom-left corner of the screen, clicking run, typing <code>lxterminal</code> and hitting enter.</p>
+</li>
+<li>
+<p>Connect to the service with netcat:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>nc rickmorty 22001
+</code></pre></div></div>
+</li>
+<li>
+<p>Type a few characters and hit enter to receive a &quot;No - disconnect and try again&quot; message.</p>
+</li>
+<li>
+<p>Hit <code>Ctrl-C</code> to end the connection.</p>
+<pre><code>Hit Ctrl-C
+</code></pre></li>
+<li>
+<p>See if you can guess the password.  You may want to search for movie quotes. Make sure not to capitalize your answer or add any extra spaces to the beginning or end.  The password is <a href="#password-hint">at the bottom of this page</a>.</p>
+</li>
+<li>
+<p>You'll see the <code>root</code> user's SSH private key file from this system displayed on the screen.  Write this private key into a file in your current directory named <code>rickmorty-key</code>. If you'd like to make this super easy, disconnect and then run this command:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">echo</span> <span class="s2">"mattersmost"</span> | nc rickmorty 22001 <span class="o">&gt;</span>rickmorty-key
+</code></pre></div></div>
+</li>
+<li>
+<p>Run a <code>chmod go-rwx</code> on the rickmorty-key file, since <code>ssh</code> won't use a key file if its permissions are too open, then <code>ssh</code> into the <code>rickmorty</code> machine:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">chmod </span>go-rwx rickmorty-key
+ssh <span class="nt">-p</span> 22222 <span class="nt">-i</span> rickmorty-key root@rickmorty
+</code></pre></div></div>
+</li>
+<li>
+<p>Let's block this attack by running that program with a custom Seccomp profile.</p>
+</li>
+<li>
+<p>To make sure SELinux doesn't get in our way, let's put it in permissive mode.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>setenforce Permissive
+</code></pre></div></div>
+</li>
+<li>
+<p>Take a look at the <code>docker ps</code> listing - notice that port <code>22001</code> is actually routing to the same port number on a Docker container called <code>echoforeground</code>.  That container is running <code>echofg</code>.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>docker ps
+</code></pre></div></div>
+</li>
+<li>
+<p>Let's build a new container image for the <code>echoforeground</code> program, but have this one run <code>strace</code> to get a list of system calls that <code>echoforeground</code> uses.  We'll make the <code>entrypoint</code>, the program the container uses as PID 1, this:</p>
+<pre><code>strace -ff /usr/local/sbin/echoforeground 22001
+</code></pre></li>
+<li>
+<p>Switch into <code>/root/docker</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cd</span> /root/docker
+</code></pre></div></div>
+</li>
+<li>
+<p>On this system, the <code>Dockerfile</code> is a symbolic link to <code>Dockerfile-echoforeground</code>.  Let's switch the symbolic link to point to <code>Dockerfile-strace</code> instead.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">ln</span> <span class="nt">-nsf</span> Dockerfile-strace Dockerfile
+</code></pre></div></div>
+</li>
+<li>
+<p>Look at the difference between the two Dockerfiles by running:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>diff Dockerfile-echoforeground Dockerfile-strace
+</code></pre></div></div>
+</li>
+<li>
+<p>Observe that <code>Dockerfile-echoforeground</code> runs <code>echoforeground</code> directly, while <code>Dockerfile-strace</code> runs <code>strace</code>, which in turn runs <code>echoforeground</code>. Here's the output of the previous command on our test system:</p>
+<pre><code>5,6c5,6
+&lt; COPY id_rsa /root/.ssh/
+&lt; ENTRYPOINT [&quot;/usr/local/sbin/echoforeground&quot;,&quot;22001&quot;]
+---
+&gt; COPY id_rsa /root/.ssh/id_rsa
+&gt; ENTRYPOINT [&quot;strace&quot;, &quot;-ff&quot;, &quot;/usr/local/sbin/echoforeground&quot;,&quot;22001&quot;]
+</code></pre></li>
+<li>
+<p>And now let's build a new image:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>docker build <span class="nt">-t</span> strace-echofg-image <span class="nb">.</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>When you <code>strace</code> your program, you'll want to run the Docker container without any security confinement, so you get the program fully exercised and don't have the chance to miss anything.  We'll thus use <code>--security-opt label=disable</code> to prevent SELinux from acting, as well as <code>--security-opt seccomp=unconfined</code> to stop the default seccomp profile from acting. Finally, we'll use <code>--cap-add ALL</code> to prevent root capability confinement from blocking anything.</p>
+</li>
+<li>
+<p>To avoid colliding with the current use of port <code>22001</code>, we'll remap the host's port <code>22002</code> to the container's port <code>22001</code>.  For our <code>strace</code>-profiling container, we'll thus run this:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>docker run <span class="nt">-itd</span> <span class="nt">--name</span> strace-echoforeground <span class="nt">-p</span> 22002:22001 <span class="se">\</span>
+  <span class="nt">--security-opt</span> <span class="nv">label</span><span class="o">=</span>disable <span class="nt">--security-opt</span> <span class="nv">seccomp</span><span class="o">=</span>unconfined <span class="se">\</span>
+  <span class="nt">--cap-add</span> ALL strace-echofg-image
+</code></pre></div></div>
+</li>
+<li>
+<p>Run <code>docker ps</code> to see the container running:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>docker ps
+</code></pre></div></div>
+</li>
+<li>
+<p>Observe that we see the new container, named <code>strace-echoforeground</code>. Here's the output from our test system:</p>
+<pre><code>docker ps
+CONTAINER ID        IMAGE                 COMMAND                  CREATED              STATUS              PORTS                      NAMES
+e83b8f878f3c        strace-echofg-image   &quot;/usr/local/sbin/e...&quot;   14 seconds ago   	 Up 14 seconds   0.0.0.0:21002-&gt;21001/tcp   strace-echoforeground
+d79bfd70fa7e        echoforeground        &quot;/usr/local/sbin/e...&quot;   Up 30 minutes       Up 30 minutes      0.0.0.0:21001-&gt;21001/tcp   echoforeground
+</code></pre></li>
+<li>
+<p>Now, let's connect to our <code>strace</code>-ing container from the <code>rickmorty</code> machine:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>nc 127.0.0.1 22002
+</code></pre></div></div>
+</li>
+<li>
+<p>Type anything but the proper password, so we don't get into the trojan horse code, then hit <code>Ctrl-C</code> to end the connection.</p>
+</li>
+<li>
+<p>Next, gather the <code>strace</code> output from the <code>strace-echoforeground</code> container via docker logs:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>docker logs strace-echoforeground | <span class="se">\</span>
+<span class="nb">grep</span> <span class="nt">-v</span> strace <span class="o">&gt;</span> strace-for-echofg
+</code></pre></div></div>
+</li>
+<li>
+<p>Now, let's parse that <code>strace</code> output into a <code>json</code> file that tells Docker what system calls should be permitted:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./parse-strace-to-json.sh strace-for-echofg <span class="o">&gt;</span>seccomp-echofg
+</code></pre></div></div>
+</li>
+<li>
+<p>Let's see how many syscalls are permitted in this new allowlist:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">grep </span>name seccomp-echofg | <span class="nb">wc</span> <span class="nt">-l</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>On our test system, the last command produced the number 17, indicating that this program can run using only 17 unique system calls. According to my syscall table, there are 314 system calls available before we use this allowlist. Our allowlist lets us restrict the program to well under 10% of those total 314 calls.</p>
+</li>
+<li>
+<p>Now let's run a container from the same <code>echoforeground</code> that was already here running the service on TCP port <code>22001</code>. We'll place this one on TCP port <code>22003</code>. Here's a reference of what programs are on what port:</p>
+<pre><code>Port	Name/Memo
+----	---------
+22000	echodaemon, for SELinux exercise
+22001	echoforeground in Docker, w/o confinement
+22002	strace for echoforeground in Docker
+22003	echoforeground confined w/ seccomp
+</code></pre></li>
+<li>
+<p>Start the container, using the new <code>seccomp</code> filter:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>docker run <span class="nt">-itd</span> <span class="nt">--name</span> confined-echofg <span class="nt">-p</span> 22003:22001 <span class="se">\</span>
+<span class="nt">--security-opt</span> no-new-privileges <span class="se">\</span>
+<span class="nt">--security-opt</span> <span class="nv">seccomp</span><span class="o">=</span>seccomp-echofg <span class="se">\</span>
+ <span class="nt">--restart</span> always echoforeground
+</code></pre></div></div>
+</li>
+<li>
+<p>Now connect to <code>localhost</code> port <code>22003</code> to connect to the <code>seccomp</code>-confined <code>echoforeground</code>.</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>nc 127.0.0.1 22003
+</code></pre></div></div>
+</li>
+<li>
+<p>Let's make sure the program works by answering incorrectly and hitting <code>Ctrl-C</code> to terminate the connection.</p>
+</li>
+<li>
+<p>Next, make sure that you've defeated the backdoor by reconnecting and entering the password.</p>
+<p>If you don't get an SSH key file back for the correct password, you're successful.</p>
+</li>
+<li>
+<p>Suspend the virtual machines:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">sudo</span> /sync/bin/suspend-all-vms.sh 
+</code></pre></div></div>
+</li>
+</ol>
+<h2 id="password-hint">Password Hint</h2>
+<p>The password is: <code>mattersmost</code></p>
+
+  </div>
+
+  <div class="post-exercise">
+    <h2 id="exercise-done">Done With the Exercise</h2>
+
+<p>Please flip your sticker over so we know how many people are done with the exercise.</p>
+</p>
+    
+
+
+    <h2 id="suspend-vms">Virtual Machine Management Tips</h2>
+
+<p> If you want to see what virtual machines are currently running, you can run:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  virsh list  
+</code></pre></div>    </div>
+    
+<p>If you have virtual machines using RAM and CPU, you can suspend all of them with:</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  sudo /sync/bin/suspend-all-vms.sh 
+</code></pre></div>    </div>
+
+    
+
+  </div>
+
+</article>
+<script src="/assets/scripts/clipboard.min.js"></script>
+<script src="/assets/scripts/copy.js"></script>
+
+      </div>
+    </main><footer class="site-footer h-card">
+  <data class="u-url" href="/"></data>
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">Abusing and Protecting Kubernetes, Linux and Containers</h2>
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col footer-col-1">
+        <ul class="contact-list">
+          <li class="p-name">Abusing and Protecting Kubernetes, Linux and Containers</li><li><a class="u-email" href="mailto:contact@inguardians.com">contact@inguardians.com</a></li></ul>
+      </div>
+
+      <div class="footer-col footer-col-2"><ul class="social-media-list"><li><a href="https://github.com/inguardians"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#github"></use></svg> <span class="username">inguardians</span></a></li><li><a href="https://www.twitter.com/inguardians"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#twitter"></use></svg> <span class="username">inguardians</span></a></li></ul>
+</div>
+
+      <div class="footer-col footer-col-3">
+        <p></p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+</body>
+
+</html>

